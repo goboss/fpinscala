@@ -78,5 +78,34 @@ object datastructures {
       case Nil => z
       case Cons(h, t) => foldLeft(t, f(z, h))(f)
     }
+
+    // Exercie 3.11: write sum, product and length using foldLeft
+    def sum3(l: List[Int]): Int =
+      foldLeft(l, 0)(_ + _)
+
+    def product3(l: List[Int]): Int = 
+      foldLeft(l, 1)(_ * _)
+
+    def length2[A](l: List[A]): Int = 
+      foldLeft(l, 0)((acc, _) => acc + 1)
+
+    // Exercise 3.12: write a function that returns the reverse of a list using a fold
+    def reverse[A](l: List[A]): List[A] = 
+      foldLeft(l, List[A]())((as, a) => Cons(a, as))
+
+    // Exercie 3.13: write foldLeft in terms of foldRight and vice versa
+    def foldLeft2[A, B](as: List[A], z: B)(f: (B, A) => B): B = 
+      foldRight(as, (b: B) => b)((a, g) => b => g(f(b, a)))(z)
+
+    def foldRight2[A, B](as: List[A], z: B)(f: (A, B) => B): B = 
+      foldLeft(reverse(as), z)((b, a) => f(a, b))
+
+    // Exercise 3.14: implement append using a fold
+    def append2[A](l1: List[A], l2: List[A]): List[A] = 
+      foldRight(l1, l2)(Cons(_, _))
+
+    // Exercise 3.15: write a function that concatenates a list of lists into a single list
+    def flatten[A](l: List[List[A]]): List[A] = 
+      foldLeft(l, List[A]())(append)
   }
 }
