@@ -107,5 +107,75 @@ object datastructures {
     // Exercise 3.15: write a function that concatenates a list of lists into a single list
     def flatten[A](l: List[List[A]]): List[A] = 
       foldLeft(l, List[A]())(append)
+
+    // Exercise 3.16: add 1 to each element of list of ints (no map yet :()
+    def inc(is: List[Int]): List[Int] = is match {
+      case Nil => Nil
+      case Cons(h, t) => Cons(h + 1, inc(t))
+    }
+
+    // Exercise 3.17: write a function that turns each Double into a String
+    def d2s(ds: List[Double]): List[String] = ds match {
+      case Nil => Nil
+      case Cons(h, t) => Cons(h.toString, d2s(t))
+    }
+      
+    // Exercise 3.18: write a map finally!
+    def map[A, B](as: List[A])(f: A => B): List[B] = as match {
+      case Nil => Nil
+      case Cons(h, t) => Cons(f(h), map(t)(f))
+    }
+
+    // Exercise 3.19: write a function filter
+    def filter[A](as: List[A])(p: A => Boolean): List[A] = as match {
+      case Nil => Nil
+      case Cons(h, t) =>
+        if(p(h)) Cons(h, filter(t)(p))
+        else filter(t)(p)
+    }
+
+    // Exercise 3.20: write flatMap
+    def flatMap[A, B](as: List[A])(f: A => List[B]): List[B] = 
+      flatten(map(as)(f))
+
+    // Exercise 3.21: use flatMap to implement filter
+    def filter2[A](as: List[A])(p: A => Boolean): List[A] = 
+      flatMap(as)(a => if (p(a)) List(a) else Nil)
+
+    // Exercise 3.22: write a function that acceots two lists and constructs a new list by adding
+    // corresponding elements
+    def addTogether(as: List[Int], bs: List[Int]): List[Int] = (as, bs) match {
+      case (Nil, _) => Nil
+      case (_, Nil) => Nil
+      case (Cons(a, ta), Cons(b, tb)) => Cons(a + b, addTogether(ta, tb))
+    }
+
+    // Exercise 3.23: generalize addTogether
+    def zipWith[A, B, C](as: List[A], bs: List[B])(f: (A, B) => C): List[C] = (as, bs) match {
+      case (Nil, _) => Nil
+      case (_, Nil) => Nil
+      case (Cons(a, ta), Cons(b, tb)) => Cons(f(a, b), zipWith(ta, tb)(f))
+    }
+
+    // Exercise 3.24: implement a function for checking whether a list contains another list as a subsequence
+    def hasSubsequence[A](sup: List[A], sub: List[A]): Boolean = {
+      def hasPrefix(l: List[A], p: List[A]): Boolean = (l, p) match {
+        case (_, Nil) => 
+          true
+        case (Cons(h1, t1), Cons(h2, t2)) if h1 == h2 =>
+          hasPrefix(t1, t2)
+        case _ => 
+          false
+      }
+
+      sup match {
+        case Nil => 
+          sub == Nil
+        case l if hasPrefix(l, sub) => 
+          true
+        case Cons(_, t) => 
+          hasSubsequence(t, sub)
+      }
+    }
   }
 }
