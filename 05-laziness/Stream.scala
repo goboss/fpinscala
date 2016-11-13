@@ -68,6 +68,30 @@ object laziness {
 
     def append[B >: A](s: => Stream[B]): Stream[B] =
       foldRight(s)((a, t) => Stream.cons(a, t))
+
+    // Exercise 5.14: Implement statsWith using function you've written
+    def startsWith[A](prefix: Stream[A]): Boolean = 
+      Stream.zipAll(this, prefix).takeWhile(_._2.nonEmpty).forAll {
+        case (h1, h2) => h1 == h2
+      }
+
+    // Exercise 5.15: Implement tails using unfold
+    def tails: Stream[Stream[A]] = Stream.unfold(this) {
+      case Empty => None
+      case s => Some((s, s.drop(1)))
+    }.append(Stream(Stream.empty))
+
+    def hasSubsequence[A](s: Stream[A]): Boolean =
+      tails exists (_ startsWith s)
+
+    // Exercise 5.16: Generalize tails to the function scanRight , which is like a foldRight that
+    // returns a stream of the intermediate results.
+    def scanRight[B](z: B)(f: (A, => B) => B): Stream[B] =
+      foldRight((z, Stream(z))) {
+        case (a, (s0, s)) =>
+          lazy val v = f(a, s0)
+          (v, Stream.cons(v, s))
+      }._2
   }
 
   case object Empty extends Stream[Nothing]
@@ -100,6 +124,51 @@ object laziness {
 
       go(0, 1)
     }
+
+    // Exercise 5.11: Write a more general stream-building function called unfold
+    def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = 
+      f(z) match {
+        case None => Empty
+        case Some((a, s)) => cons(a, unfold(s)(f))
+      }
+
+    // Exercise 5.12: Write fibs , from , constant , and ones in terms of unfold
+    def fibs2: Stream[Int] = unfold((0, 1)) { case (a, b) => Some((a, (b, a+b))) }
+
+    def from2(n: Int): Stream[Int] = unfold(n)(i => Some((i, i + 1)))
+
+    def constant2[A](a: A): Stream[A] = unfold(a)(s => Some((a, a)))
+
+    def ones2: Stream[Int] = unfold(1)(_ => Some(1, 1))
+
+    // Exercise 5.13: Use unfold to implement map , take , takeWhile , zipWith (as in chapter 3), and
+    // zipAll
+    def map[A, B](s: Stream[A])(f: A => B): Stream[B] = unfold(s) {
+      case Empty => None
+      case Cons(h, t) => Some((f(h()), t()))
+    }
+
+    def take[A](s: Stream[A], n: Int): Stream[A] = unfold((s, n)) {
+      case (Cons(h, t), n) if n > 0 => Some((h(), (t(), n - 1)))
+      case _ => None
+    }
+
+    def takeWhile[A](s: Stream[A])(p: A => Boolean) = unfold(s) {
+      case Cons(h, t) if p(h()) => Some((h(), t()))
+      case _ => None
+    }
+
+    def zipWith[A, B, C](as: Stream[A], bs: Stream[B])(f: (A, B) => C): Stream[C] = 
+      unfold((as, bs)) {
+        case (Cons(h1, t1), Cons(h2, t2)) => Some((f(h1(), h2())), (t1(), t2()))
+        case _ => None
+      }
+
+    def zipAll[A, B](s1: Stream[A], s2: Stream[B]): Stream[(Option[A],Option[B])] = 
+      unfold((s1, s2)) {
+        case (Empty, Empty) => None
+        case (as, bs) => Some(((as.headOption, bs.headOption), (as.drop(1), bs.drop(1))))
+      }
   }
 
 }
