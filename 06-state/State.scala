@@ -150,6 +150,36 @@ object state {
       ss.foldRight(unit[S, List[A]](List.empty)) { (s, acc) =>
         s.map2(acc)(_ :: _)
       }
+
+		def modify[S](f: S => S): State[S, Unit] = for {
+			s <- get // Gets the current state and assigns it to `s`.
+			_ <- set(f(s)) // Sets the new state to `f` applied to `s`.
+		} yield ()
+
+		def get[S]: State[S, S] = State(s => (s, s))
+
+		def set[S](s: S): State[S, Unit] = State(_ => ((), s))
   }
 
+  // Exercise 6.11: simulate candy machine :)
+  sealed trait Input
+  case object Coin extends Input
+  case object Turn extends Input
+
+  case class Machine(locked: Boolean, candies: Int, coins: Int)
+
+  def input(i: Input)(m: Machine): Machine =
+    (m, i) match {
+      case (Machine(_, 0, _), _) => m
+      case (Machine(true, _, _), Turn) => m
+      case (Machine(false, _, _), Coin) => m
+      case (Machine(true, ca, co), Coin) => Machine(false, ca, co + 1)
+      case (Machine(false, ca, co), Turn) => Machine(true, ca - 1, co)
+    }
+  
+  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] =
+    for {
+      _ <- State.sequence(inputs.map(i => State.modify(input(i))))
+      s <- State.get
+    } yield (s.candies, s.coins)
 }
