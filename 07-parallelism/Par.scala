@@ -17,10 +17,10 @@ object Par {
     def cancel(evenIfRunning: Boolean): Boolean = false 
   }
   
-  // Exercise 7.3: fix the implementation of map2 so that ir respects the contract of timeouts on Future.
-  def map2[A,B,C](a: Par[A], b: Par[B])(f: (A,B) => C): Par[C] = 
+  // Exercise 7.3: fix the implementation of map2 so that it respects the contract of timeouts on Future.
+  def map2[A,B,C](a: Par[A], b: Par[B])(f: (A,B) => C): Par[C] =
     (es: ExecutorService) => {
-      val af = a(es) 
+      val af = a(es)
       val bf = b(es)
       
       new Future[C] {
@@ -48,6 +48,19 @@ object Par {
   def asyncF[A, B](f: A => B): A => Par[B] =
     a => lazyUnit(f(a))
   
+  // Exercise 7.5: write the function sequence.
+  def sequence[A](ps: List[Par[A]]): Par[List[A]] =
+    ps.foldRight(unit(List.empty[A])) { (p, par) =>
+      map2(p, par)(_ :: _)
+    }
+
+  // Exercise 7.6: implement parFilter, which filters elements of a list in parallel
+  def parFilter[A](as: List[A])(f: A => Boolean): Par[List[A]] =
+    fork {
+      val ps = as.map(asyncF((a: A) => if(f(a)) List(a) else List()))
+      map(sequence(ps))(_.flatten)
+    }
+
   def fork[A](a: => Par[A]): Par[A] = 
     es => es.submit(new Callable[A] { 
       def call = a(es).get
