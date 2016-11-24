@@ -18,7 +18,7 @@ object Par {
   }
   
   // Exercise 7.3: fix the implementation of map2 so that it respects the contract of timeouts on Future.
-  def map2[A,B,C](a: Par[A], b: Par[B])(f: (A,B) => C): Par[C] =
+  def map2[A, B, C](a: Par[A], b: Par[B])(f: (A, B) => C): Par[C] =
     (es: ExecutorService) => {
       val af = a(es)
       val bf = b(es)
@@ -42,6 +42,35 @@ object Par {
         }
       }
     }
+
+  def map3[A, B, C, D](a: Par[A], b: Par[B], c: Par[C])(f: (A, B, C) => D): Par[D] = {
+    val parAB = map2(a, b)((aa, bb) => (aa, bb))
+    val parC = map2(c, unit(()))((cc, _) => cc)
+    map2(parAB, parC) {
+      case ((aa, bb), cc) => f(aa, bb, cc)
+    }
+  }
+
+  def map4[A, B, C, D, E](a: Par[A], b: Par[B], c: Par[C], d: Par[D])(f: (A, B, C, D) => E): Par[E] = {
+    val parAB = map2(a, b)((aa, bb) => (aa, bb))
+    val parCD = map2(c, d)((cc, dd) => (cc, dd))
+    map2(parAB, parCD) {
+      case ((aa, bb), (cc, dd)) => f(aa, bb, cc, dd)
+    }
+  }
+
+  def fold[A, B >: A](as: IndexedSeq[A], z: B)(f: (B, B) => B): Par[B] = {
+    if(as.length < 1)
+      unit(z)
+    else if(as.length == 1) {
+      unit(f(as.head, z))
+    }
+    else {
+      val (l, r) = as.splitAt(as.length / 2)
+      // This can of course deadlock just like the sum function from the book :)
+      map2(fork(fold(l, z)(f)), fork(fold(r, z)(f)))(f)
+    }
+  }
 
   // Execise 7.4: using lazyUnit, write a function to convert any function A => B to one that evaluates its
   // result asynchronously.
@@ -101,4 +130,6 @@ object Examples {
       sum(l) + sum(r) // Recursively sum both halves and add the results together.
     }
 
+  def parMax(is: IndexedSeq[Int]): Par[Int] = 
+    Par.fold(is, Int.MinValue)(math.max)
 }
