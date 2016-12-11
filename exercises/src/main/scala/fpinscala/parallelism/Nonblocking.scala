@@ -1,11 +1,17 @@
+package fpinscala.parallelism
+
 import java.util.concurrent.{Callable, CountDownLatch, ExecutorService}
 import java.util.concurrent.atomic.AtomicReference
+
+import Nonblocking.{Future, Par}
+import Nonblocking.Par.{eval, map}
+
 import language.implicitConversions
 
 object Nonblocking {
 
   trait Future[+A] {
-    def apply(k: A => Unit): Unit
+    private[parallelism] def apply(k: A => Unit): Unit
   }
 
   type Par[+A] = ExecutorService => Future[A]
@@ -129,7 +135,7 @@ object Nonblocking {
           }
       }
 
-    // Exercise 7.11: implement choiceN and then choice in terms of choiceN.
+    // Exercise 11: implement choiceN and then choice in terms of choiceN.
     def choiceN[A](p: Par[Int])(ps: List[Par[A]]): Par[A] =
       es => new Future[A] {
         def apply(f: A => Unit): Unit =
@@ -142,19 +148,19 @@ object Nonblocking {
     def choiceViaChoiceN[A](a: Par[Boolean])(ifTrue: Par[A], ifFalse: Par[A]): Par[A] =
       choiceN(a.map(b => if(b) 1 else 0))(List(ifFalse, ifTrue))
 
-    // Exercise 7.12: implement choiceMap
+    // Exercise 12: implement choiceMap
     def choiceMap[K,V](p: Par[K])(ps: Map[K,Par[V]]): Par[V] =
       chooser(p)(ps.apply)
 
-    // Exercise 7.13: Implement this new primitive chooser , and then use it to implement choice and
+    // Exercise 13: Implement this new primitive chooser , and then use it to implement choice and
     // choiceN .
     def chooser[A,B](p: Par[A])(f: A => Par[B]): Par[B] =
-      es => new Future[B] {
-        def apply(g: B => Unit): Unit =
-          p(es) { a =>
-            eval(es)(f(a)(es)(g))
-          }
-      }
+    es => new Future[B] {
+      def apply(g: B => Unit): Unit =
+        p(es) { a =>
+          eval(es)(f(a)(es)(g))
+        }
+    }
 
     def flatMap[A,B](p: Par[A])(f: A => Par[B]): Par[B] =
       chooser(p)(f)
@@ -165,14 +171,14 @@ object Nonblocking {
     def choiceNChooser[A](p: Par[Int])(choices: List[Par[A]]): Par[A] =
       chooser(p)(choices.apply)
 
-    // Exercise 7.14: Implement join . Can you see how to implement flatMap using join ? And can you
+    // Exercise 14: Implement join . Can you see how to implement flatMap using join ? And can you
     // implement join using flatMap ?
     def join[A](p: Par[Par[A]]): Par[A] =
-      es => new Future[A] {
-        def apply(f: A => Unit): Unit = {
-          p(es)(pa => eval(es)(pa(es)(f)))
-        }
+    es => new Future[A] {
+      def apply(f: A => Unit): Unit = {
+        p(es)(pa => eval(es)(pa(es)(f)))
       }
+    }
 
     def joinViaFlatMap[A](a: Par[Par[A]]): Par[A] =
       flatMap(a)(identity)

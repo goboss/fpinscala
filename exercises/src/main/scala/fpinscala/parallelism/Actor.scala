@@ -1,3 +1,5 @@
+package fpinscala.parallelism
+
 import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 import java.util.concurrent.{Callable,ExecutorService}
 import annotation.tailrec
