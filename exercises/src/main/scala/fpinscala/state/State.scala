@@ -18,13 +18,18 @@ object RNG {
 
   val int: Rand[Int] = _.nextInt
 
+  def boolean(rng: RNG): (Boolean, RNG) = {
+    val (i, r1) = rng.nextInt
+    (i % 2 == 0, r1)
+  }
+
   def unit[A](a: A): Rand[A] =
     rng => (a, rng)
 
   def map[A,B](s: Rand[A])(f: A => B): Rand[B] =
     rng => {
-      val (a, rng2) = s(rng)
-      (f(a), rng2)
+      val (a, r1) = s(rng)
+      (f(a), r1)
     }
 
   // Exercise 1: Write a function that uses RNG.nextInt to generate a random integer between 0 and
