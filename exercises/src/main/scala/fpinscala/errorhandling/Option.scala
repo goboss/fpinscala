@@ -21,11 +21,20 @@ sealed trait Option[+A] {
 
   def filter(f: A => Boolean): Option[A] =
     flatMap(v => if(f(v)) Some(v) else None)
+
+  def isEmpty: Boolean
+  def nonEmpty: Boolean = !isEmpty
 }
-case class Some[+A](get: A) extends Option[A]
-case object None extends Option[Nothing]
+case class Some[+A](get: A) extends Option[A] {
+  override def isEmpty: Boolean = false
+}
+case object None extends Option[Nothing] {
+  override def isEmpty: Boolean = true
+}
 
 object Option {
+  def empty[A]: Option[A] = None
+
   def failingFn(i: Int): Int = {
     val y: Int = throw new Exception("fail!") // `val y: Int = ...` declares `y` as having type `Int`, and sets it equal to the right hand side of the `=`.
     try {

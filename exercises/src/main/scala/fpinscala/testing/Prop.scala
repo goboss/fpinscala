@@ -1,8 +1,12 @@
 package fpinscala.testing
 
-import fpinscala.laziness.Stream
+import fpinscala.errorhandling._
+import fpinscala.laziness._
 import fpinscala.state.RNG
 import Prop._
+
+import scala.annotation.tailrec
+import scala.util.{Failure, Success, Try}
 
 trait SimpleProp { self =>
   def check: Boolean
@@ -46,8 +50,7 @@ object Prop {
   case object Passed extends Result {
     def isFalsified = false
   }
-  case class Falsified(failure: FailedCase,
-    successes: SuccessCount) extends Result {
+  case class Falsified(failure: FailedCase, successes: SuccessCount) extends Result {
     def isFalsified = true
   }
   case object Proved extends Result {
@@ -66,22 +69,34 @@ object Prop {
 
 
   /* Produce an infinite random stream from a `Gen` and a starting `RNG`. */
-  def randomStream[A](g: Gen[A])(rng: RNG): Stream[A] =
+  def randomStream[A](g: Gen[A], rng: RNG): Stream[A] =
     Stream.unfold(rng)(rng => Some(g.sample.run(rng)))
 
-  def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop {
-    (_, n, rng) => randomStream(as)(rng).zip(Stream.from(0)).take(n).map {
-      case (a, i) => try {
-        if (f(a)) Passed else Falsified(a.toString, i)
-      } catch { case e: Exception => Falsified(buildMsg(a, e), i) }
-    }.find(_.isFalsified).getOrElse(Passed)
+  def forAll[A](as: Gen[A])(f: A => Boolean): Prop =
+    Prop { (_, n, rng) =>
+      @tailrec
+      def loop(i: Int, s: Stream[A]): Result = s match {
+        case Cons(h, t) if i < n =>
+          Try(f(h())) match {
+            case Success(fh) =>
+              if (f(h())) loop(i + 1, t()) else Falsified(h().toString, i)
+            case Failure(e) =>
+              Falsified(buildMsg(h(), e), i)
+          }
+        case Empty =>
+          Proved
+        case _ =>
+          Passed
+      }
+
+      loop(0, as.domain.getOrElse(randomStream(as, rng)))
   }
 
   def forAll[A](g: SGen[A])(f: A => Boolean): Prop =
     forAll(g.forSize)(f)
 
   def forAll[A](g: Int => Gen[A])(f: A => Boolean): Prop = Prop {
-    (max,n,rng) =>
+    (max, n, rng) =>
       val casesPerSize = (n - 1) / max + 1
       val props: Stream[Prop] =
         Stream.from(0).take((n min max) + 1).map(i => forAll(g(i))(f))
@@ -95,8 +110,8 @@ object Prop {
   // String interpolation syntax. A string starting with `s"` can refer to
   // a Scala value `v` as `$v` or `${v}` in the string.
   // This will be expanded to `v.toString` by the Scala compiler.
-  def buildMsg[A](s: A, e: Exception): String =
-  s"test case: $s\n" +
+  def buildMsg[A](s: A, e: Throwable): String =
+    s"test case: $s\n" +
     s"generated an exception: ${e.getMessage}\n" +
     s"stack trace:\n ${e.getStackTrace.mkString("\n")}"
 

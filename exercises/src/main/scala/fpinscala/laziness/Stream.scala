@@ -1,13 +1,20 @@
 package fpinscala.laziness
 
 import Stream._
-
 import scala.annotation.tailrec
+import fpinscala.errorhandling._
+
 trait Stream[+A] {
+  def isEmpty: Boolean
+  def nonEmpty: Boolean = !isEmpty
+
   def headOption: Option[A] = this match {
     case Empty => None
-    case Cons(h, t) => Some(h())
+    case Cons(h, _) => Some(h())
   }
+
+  def tail: Stream[A] =
+    drop(1)
 
   def foldRight[B](z: => B)(f: (A, => B) => B): B = // The arrow `=>` in front of the argument type `B` means that the function `f` takes its second argument by name and may choose not to evaluate it.
     this match {
@@ -43,7 +50,7 @@ trait Stream[+A] {
   }
 
   def drop(n: Int): Stream[A] = this match {
-    case Cons(h, t) if n > 0 => t().drop(n-1)
+    case Cons(_, t) if n > 0 => t().drop(n-1)
     case _ => this
   }
 
@@ -65,7 +72,7 @@ trait Stream[+A] {
 
   // Exercise 6: Implement headOption using foldRight
   def headOption2: Option[A] =
-    foldRight(None: Option[A])((a, t) => Some(a))
+    foldRight(None: Option[A])((a, _) => Some(a))
 
   // Exercise 7: Implement map, filter, append and flatMap using foldRight. The append method
   // should be non-strict in its argument.
@@ -119,8 +126,12 @@ trait Stream[+A] {
       case (Cons(h1, t1), Cons(h2, t2)) => Some(f(Some(h1()), Some(h2())) -> (t1() -> t2()))
     }
 }
-case object Empty extends Stream[Nothing]
-case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A]
+case object Empty extends Stream[Nothing] {
+  override def isEmpty: Boolean = true
+}
+case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A] {
+  override def isEmpty: Boolean = false
+}
 
 object Stream {
   def cons[A](hd: => A, tl: => Stream[A]): Stream[A] = {
@@ -162,7 +173,7 @@ object Stream {
 
   def from2(n: Int): Stream[Int] = unfold(n)(i => Some((i, i + 1)))
 
-  def constant2[A](a: A): Stream[A] = unfold(a)(s => Some((a, a)))
+  def constant2[A](a: A): Stream[A] = unfold(a)(_ => Some((a, a)))
 
   def ones2: Stream[Int] = unfold(1)(_ => Some(1, 1))
 
