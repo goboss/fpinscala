@@ -18,13 +18,9 @@ object RNG {
 
   val int: Rand[Int] = _.nextInt
 
-  def boolean(rng: RNG): (Boolean, RNG) = {
-    val (i, r1) = rng.nextInt
-    (i % 2 == 0, r1)
-  }
+  val boolean: Rand[Boolean] = map(int)(_ % 2 == 0)
 
-  def unit[A](a: A): Rand[A] =
-    rng => (a, rng)
+  def unit[A](a: A): Rand[A] = rng => (a, rng)
 
   def map[A,B](s: Rand[A])(f: A => B): Rand[B] =
     rng => {
