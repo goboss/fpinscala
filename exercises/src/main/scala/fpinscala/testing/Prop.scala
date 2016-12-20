@@ -1,8 +1,13 @@
 package fpinscala.testing
 
+import java.util.concurrent.{ExecutorService, Executors}
+
 import fpinscala.errorhandling._
 import fpinscala.laziness._
-import fpinscala.state.RNG
+import fpinscala.state._
+import fpinscala.parallelism.Par
+import fpinscala.parallelism.Par.Par
+import fpinscala.testing.Gen._
 import Prop._
 
 import scala.annotation.tailrec
@@ -79,7 +84,7 @@ object Prop {
         case Cons(h, t) if i < n =>
           Try(f(h())) match {
             case Success(fh) =>
-              if (f(h())) loop(i + 1, t()) else Falsified(h().toString, i)
+              if (fh) loop(i + 1, t()) else Falsified(h().toString, i)
             case Failure(e) =>
               Falsified(buildMsg(h(), e), i)
           }
@@ -101,11 +106,29 @@ object Prop {
       val props: Stream[Prop] =
         Stream.from(0).take((n min max) + 1).map(i => forAll(g(i))(f))
       val prop: Prop =
-        props.map(p => Prop { (max, n, rng) =>
+        props.map(p => Prop { (max, _, rng) =>
           p.run(max, casesPerSize, rng)
         }).toList.reduce(_ && _)
       prop.run(max,n,rng)
   }
+
+  val S: Gen[ExecutorService] = weighted(
+    choose(1, 4).map(Executors.newFixedThreadPool) -> .75,
+    unit(Executors.newCachedThreadPool) -> .25
+  ) // `a -> b` is syntax sugar for `(a,b)`
+
+  def forAllPar[A](g: Gen[A])(f: A => Par[Boolean]): Prop =
+    forAll(S ** g) { case s ** a => f(a)(s).get() }
+
+  def equal[A](p: Par[A], p2: Par[A]): Par[Boolean] =
+    Par.map2(p,p2)(_ == _)
+
+  def check(p: => Boolean): Prop = Prop { (_, _, _) =>
+    if (p) Proved else Falsified("()", 0)
+  }
+
+  def checkPar(p: Par[Boolean]): Prop =
+    forAllPar(Gen.unit(()))(_ => p)
 
   // String interpolation syntax. A string starting with `s"` can refer to
   // a Scala value `v` as `$v` or `${v}` in the string.

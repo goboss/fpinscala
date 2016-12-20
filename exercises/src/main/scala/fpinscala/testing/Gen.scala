@@ -3,7 +3,10 @@ package fpinscala.testing
 import fpinscala.state._
 import fpinscala.laziness._
 import fpinscala.errorhandling._
+import fpinscala.parallelism.Par
+import fpinscala.parallelism.Par.Par
 import Prop._
+import Gen._
 
 case class Gen[+A](sample: State[RNG, A], domain: Option[Stream[A]]) {
   // Exercise 6: Implement flatMap, and then use it to implement this more dynamic version of listOfN.
@@ -15,16 +18,29 @@ case class Gen[+A](sample: State[RNG, A], domain: Option[Stream[A]]) {
       }
     )
 
+  def map[B](f: A => B): Gen[B] =
+    Gen(sample.map(f), unboundedDomain)
+
+  def map2[B,C](g: Gen[B])(f: (A,B) => C): Gen[C] =
+    Gen(sample.map2(g.sample)(f), unboundedDomain)
+
   def listOfN(size: Gen[Int]): Gen[List[A]] =
     size.flatMap(n => Gen.listOfN(n, this))
 
   // Exercise 10: Implement helper functions for converting Gen to SGen. You can add this as a method on Gen.
   def unsized: SGen[A] =
     SGen(_ => this)
+
+  def **[B](g: Gen[B]): Gen[(A,B)] =
+    (this map2 g)((_,_))
 }
 
 object Gen {
   type Domain[A] = Option[Stream[A]]
+
+  object ** {
+    def unapply[A,B](p: (A,B)) = Some(p)
+  }
 
   def unboundedDomain[A]: Domain[A] = None
   def boundedDomain[A](s: Stream[A]): Domain[A] = Some(s)
@@ -75,20 +91,38 @@ object Gen {
   // The implementation should generate lists of the requested size.
   def listOf[A](g: Gen[A]): SGen[List[A]] =
     SGen(s => listOfN(s, g))
+
+  // Exercise 16: Write a richer generator for Par[Int] , which builds more deeply nested parallel computations than the simple ones we gave previously.
+  def parInt: Gen[Par[Int]] =
+    int.listOfN(choose(0, 10)).map { l =>
+      l.foldLeft(Par.unit(0)) { (acc, a) =>
+        Par.fork(Par.map2(acc, Par.unit(a))(_ + _))
+      }
+    }
 }
 
 case class SGen[+A](forSize: Int => Gen[A]) {
   // Exercise 11: Define some convenience functions on SGen that simply delegate to the corresponding functions on Gen
   def flatMap[B](f: A => Gen[B]): SGen[B] =
     SGen(s => forSize(s).flatMap(f))
+
+  def **[B](s2: SGen[B]): SGen[(A,B)] =
+    SGen(n => forSize(n) ** s2.forSize(n))
 }
 
 object Examples {
   // Exercise 14: Write a property to verify the behavior of List.sorted
-  def isSorted: Prop = {
+  val isSorted: Prop = {
     forAll(Gen.listOf1(Gen.int)) { is =>
       val sorted = is.sorted
       (sorted zip sorted.tail).forall(i => i._1 < i._2)
+    }
+  }
+
+  // Exercise 17: Express the property about fork from chapter 7, that fork(x) == x.
+  val forkProp: Prop = {
+    forAllPar(Gen.parInt) { i =>
+      equal(Par.fork(i), i)
     }
   }
 }
