@@ -27,6 +27,12 @@ case class Gen[+A](sample: State[RNG, A], domain: Option[Stream[A]]) {
   def listOfN(size: Gen[Int]): Gen[List[A]] =
     size.flatMap(n => Gen.listOfN(n, this))
 
+  def listOfN(size: Int): Gen[List[A]] =
+    listOfN(Gen.unit(size))
+
+  def listOf1: SGen[List[A]] =
+    Gen.listOf1(this)
+
   // Exercise 10: Implement helper functions for converting Gen to SGen. You can add this as a method on Gen.
   def unsized: SGen[A] =
     SGen(_ => this)
@@ -37,6 +43,8 @@ case class Gen[+A](sample: State[RNG, A], domain: Option[Stream[A]]) {
 
 object Gen {
   type Domain[A] = Option[Stream[A]]
+
+  private var DefaultSampleSize = 100
 
   object ** {
     def unapply[A,B](p: (A,B)) = Some(p)
@@ -56,6 +64,16 @@ object Gen {
   // Exercise 5: Try implementing unit, boolean, and listOfN.
   def unit[A](a: => A): Gen[A] = Gen(State.unit(a), boundedDomain(Stream(a)))
 
+  def sequence[A](g: Seq[Gen[A]]): Gen[Seq[A]] =
+    g.foldLeft(Gen.unit(Seq.empty[A])) { (acc, ga) =>
+      acc.flatMap(as => ga.map(a => a +: as))
+    }
+
+  def sequenceSized[A](sg: SGen[Seq[Gen[A]]]): SGen[Seq[A]] =
+    SGen { i =>
+      sg.forSize(i).flatMap(sequence)
+    }
+
   def boolean: Gen[Boolean] =
     Gen(State(RNG.boolean), boundedDomain(Stream(true, false)))
 
@@ -65,6 +83,24 @@ object Gen {
   // TODO: make this bounded
   def int: Gen[Int] =
     Gen(State(RNG.int), unboundedDomain)
+
+  def asciiN(n: Int): Gen[String] =
+    choose(0, 128).listOfN(n).map(_.map(_.toChar).mkString)
+
+  def ascii: Gen[String] =
+    choose(0, DefaultSampleSize).flatMap(asciiN)
+
+  def alphaChar: Gen[Char] =
+    pick(IndexedSeq.range(48, 57) ++ IndexedSeq.range(65, 90) ++ IndexedSeq.range(97, 122)).map(_.toChar)
+
+  def alphaN(n: Int): Gen[String] =
+    alphaChar.listOfN(n).map(_.mkString)
+
+  def alpha: Gen[String] =
+    choose(0, DefaultSampleSize).flatMap(alphaN)
+
+  def pick[A](xs: Seq[A]): Gen[A] =
+    choose(0, xs.length).map(xs.apply)
 
   def listOfN[A](n: Int, g: Gen[A]): Gen[List[A]] =
     Gen(State.sequence(List.fill(n)(g.sample)), unboundedDomain)
@@ -99,6 +135,28 @@ object Gen {
         Par.fork(Par.map2(acc, Par.unit(a))(_ + _))
       }
     }
+
+  def gen: Gen[Gen[_]] =
+    pick(Seq(Gen.int, Gen.double, Gen.boolean, Gen.ascii, Gen.alpha))
+
+  // Exercise 19: We want to generate a function that uses its argument in some way to select which Int to return.
+  def funN[A, B](n: Int, g: Gen[B]): Gen[A => B] =
+    g.listOfN(n).map(l => a => l(math.abs(a.hashCode) % l.length))
+
+  def fun[A, B](g: Gen[B]): Gen[A => B] =
+    funN(DefaultSampleSize, g)
+
+  def funToInt[A](g: Gen[A]): Gen[A => Int] =
+    fun(Gen.int)
+
+  def funToString[A](g: Gen[A]): Gen[A => String] =
+    fun(Gen.alpha)
+
+  def funToBoolean[A](g: Gen[A]): Gen[A => Boolean] =
+    fun(Gen.boolean)
+
+  def funToListOfN[A, B](n: Int, g: Gen[B]): Gen[A => List[B]] =
+    fun(Gen.listOfN(n, g))
 }
 
 case class SGen[+A](forSize: Int => Gen[A]) {
@@ -112,17 +170,32 @@ case class SGen[+A](forSize: Int => Gen[A]) {
 
 object Examples {
   // Exercise 14: Write a property to verify the behavior of List.sorted
-  val isSorted: Prop = {
+  val isSorted: Prop =
     forAll(Gen.listOf1(Gen.int)) { is =>
       val sorted = is.sorted
       (sorted zip sorted.tail).forall(i => i._1 < i._2)
     }
-  }
 
   // Exercise 17: Express the property about fork from chapter 7, that fork(x) == x.
-  val forkProp: Prop = {
+  val forkProp: Prop =
     forAllPar(Gen.parInt) { i =>
       equal(Par.fork(i), i)
     }
-  }
+
+  // Exercise 18: Come up with some other properties that takeWhile should satisfy. Can you think of a
+  // good property expressing the relationship between takeWhile and dropWhile ?
+  val takeWhileProp: Prop =
+    forAll(Gen.int.listOf1 ** Gen.funToBoolean(Gen.int).unsized) { case (is, p) =>
+      is.takeWhile(p) ++ is.dropWhile(p) == is
+    }
+
+  val takeProp: Prop =
+    forAll(Gen.int.listOf1) { is =>
+      is.take(is.size) == is
+    }
+
+  val dropProp: Prop =
+    forAll(Gen.sequenceSized[Any](Gen.gen.listOf1)) { xs =>
+      xs.drop(0) == xs
+    }
 }
