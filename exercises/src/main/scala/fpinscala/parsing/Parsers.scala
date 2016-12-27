@@ -3,8 +3,8 @@ package fpinscala.parsing
 import fpinscala.testing.{Gen, Prop}
 import fpinscala.testing.Prop.forAll
 
-import language.higherKinds
-import language.implicitConversions
+import scala.language.higherKinds
+import scala.language.implicitConversions
 import scala.annotation.tailrec
 import scala.util.matching.Regex
 
@@ -72,31 +72,64 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
     go(succeed(List.empty))
   }
 
-  def digit: Parser[String] = "\\d".r
+  def digit: Parser[String] =
+    "\\d".r
+
+  def space: Parser[String] =
+  "\\s*".r
+
+  def double: Parser[Double] =
+    regex("""-?\d+(\.\d+([eE][+-]\d+)?)?""".r).map(_.toDouble)
+
+  def literal[A](lit: String)(a: A): Parser[A] =
+    slice(lit).map(_ => a)
+
+  def trimLeft[L, A](left: Parser[L], p: Parser[A]): Parser[A] =
+    map2(slice(left), p)((_, a) => a)
+
+  def trimRight[A, R](p: Parser[A], right: Parser[R]): Parser[A] =
+    map2(p, slice(right))((a, _) => a)
+
+  def trim[L, A, R](left: Parser[L], p: Parser[A], right: Parser[R]): Parser[A] =
+    for {
+      _ <- slice(left)
+      a <- p
+      _ <- slice(right)
+    } yield a
+
+  def trimSpace[A](p: Parser[A]): Parser[A] =
+    trim(space, p, space)
+
+  def manySep[S, A](s: Parser[S], p: Parser[A]): Parser[List[A]] =
+    map2(p, many(trimLeft(s, p)))(_ :: _)
+
+  def just[A](p: Parser[A]): Parser[A] =
+    trim("\\A".r, p, "\\z".r)
 
   // Exercise 6: Using flatMap and any other combinators, write the context-sensitive parser we couldn’t express earlier.
   def numberOfAs: Parser[List[Char]] =
     digit.flatMap(s => listOfN(s.toInt, char('a')))
 
   case class ParserOps[A](p: Parser[A]) {
-    def |[B>:A](p2: => Parser[B]): Parser[B] = self.or(p,p2) // use `self` to explicitly disambiguate reference to the `or` method on the `trait`
+    def |[B>:A](p2: => Parser[B]): Parser[B] = or(p2)
     def or[B>:A](p2: => Parser[B]): Parser[B] = self.or(p,p2)
+
+    def &[B](p2: => Parser[B]): Parser[B] = and(p2)
+    def and[B](p2: => Parser[B]): Parser[B] = self.trimLeft(p, p2)
 
     def flatMap[B](f: A => Parser[B]): Parser[B] =
       self.flatMap(p)(f)
 
     def map[B](f: A => B): Parser[B] = self.map(p)(f)
-
     def map2[B, C](p2: Parser[B])(f: (A, B) => C): Parser[C] = self.map2(p, p2)(f)
 
     def many: Parser[List[A]] = self.many(p)
+    def many1: Parser[List[A]] = self.many1(p)
 
     def slice: Parser[String] = self.slice(p)
 
-    def **[B](p2: => Parser[B]): Parser[(A,B)] =
-      self.product(p,p2)
-    def product[B](p2: => Parser[B]): Parser[(A,B)] =
-      self.product(p,p2)
+    def **[B](p2: => Parser[B]): Parser[(A,B)] = product(p2)
+    def product[B](p2: => Parser[B]): Parser[(A,B)] = self.product(p,p2)
   }
 
   object Laws {
