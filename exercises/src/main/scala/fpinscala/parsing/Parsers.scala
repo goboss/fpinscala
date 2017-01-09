@@ -1,5 +1,6 @@
 package fpinscala.parsing
 
+import fpinscala.parsing.MyParser.MyParser
 import fpinscala.testing.{Gen, Prop}
 import fpinscala.testing.Prop.forAll
 
@@ -9,22 +10,24 @@ import scala.annotation.tailrec
 import scala.util.matching.Regex
 
 trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trait
-  def run[A](p: Parser[A])(input: String): Either[ParseError, A]
+  // TODO: document these methods
+  def run[A](p: Parser[A])(input: String): ParseResult[A]
+  def succeed[A](a: A): Parser[A]
+  def or[A](p1: Parser[A], p2: => Parser[A]): Parser[A]
+  def flatMap[A,B](p: Parser[A])(f: A => Parser[B]): Parser[B]
+  def slice[A](p: Parser[A]): Parser[String]
 
   implicit def string(s: String): Parser[String]
   implicit def regex(r: Regex): Parser[String]
   implicit def operators[A](p: Parser[A]): ParserOps[A] = ParserOps[A](p)
-  implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]):
-  ParserOps[String] = ParserOps(f(a))
+  implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]): ParserOps[String] = ParserOps(f(a))
+
+  // Exercise 10: Spend some time discovering a nice set of combinators for expressing what errors get reported by a Parser
+  def describe[A](p: Parser[A], description: String): Parser[A]
+  def important[A](p: Parser[A]): Parser[A]
 
   def char(c: Char): Parser[Char] =
     string(c.toString) map (_.charAt(0))
-
-  def succeed[A](a: A): Parser[A]
-
-  def or[A](p1: Parser[A], p2: => Parser[A]): Parser[A]
-
-  def flatMap[A,B](p: Parser[A])(f: A => Parser[B]): Parser[B]
 
   // Exercise 8: map is no longer primitive. Express it in terms of flatMap and/or other combinators.
   def map[A,B](p: Parser[A])(f: A => B): Parser[B] =
@@ -37,8 +40,6 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   // Exercise 7: Implement product and map2 in terms of flatMap.
   def product[A,B](p1: Parser[A], p2: => Parser[B]): Parser[(A,B)] =
     flatMap(p1)(a => map(p2)(b => (a, b)))
-
-  def slice[A](p: Parser[A]): Parser[String]
 
   // Exercise 3: Before continuing, see if you can define many in terms of or, map2, and succeed.
   def many[A](p: Parser[A]): Parser[List[A]] =
@@ -76,7 +77,7 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
     "\\d".r
 
   def space: Parser[String] =
-  "\\s*".r
+    "\\s*".r
 
   def double: Parser[Double] =
     regex("""-?\d+(\.\d+([eE][+-]\d+)?)?""".r).map(_.toDouble)
@@ -130,6 +131,10 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
 
     def **[B](p2: => Parser[B]): Parser[(A,B)] = product(p2)
     def product[B](p2: => Parser[B]): Parser[(A,B)] = self.product(p,p2)
+
+    def describedAs(description: String): Parser[A] = self.describe(p, description)
+
+    def important: Parser[A] = self.important(p)
   }
 
   object Laws {
@@ -154,13 +159,71 @@ case class Location(input: String, offset: Int = 0) {
 
   def advanceBy(n: Int): Location = copy(offset = offset+n)
 
+  def advanceBy(s: String): Location = if(input.startsWith(s)) advanceBy(s.length) else this
+
   /* Returns the line corresponding to this location */
-  def currentLine: String = 
+  def currentLine: String =
     if (input.length > 1) input.lines.drop(line-1).next
     else ""
 }
 
 case class ParseError(
-  stack: List[(Location,String)] = List.empty,
+  stack: List[(Location, String)] = List.empty,
   otherFailures: List[ParseError] = List.empty
-)
+) {
+
+  def show(): String = {
+    stack
+      .groupBy { case (loc, _) => loc }
+      .map { case (loc, errors) =>
+        s"Errors at ${loc.line}:${loc.col}: ${errors.map(_._2).mkString("\n")}"
+      }
+      .mkString("\n")
+  }
+}
+
+trait ParseResult[+A]
+case class Success[+A](value: A, ahead: Location) extends ParseResult[A]
+case class Failure(error: ParseError) extends ParseResult[Nothing]
+
+object MyParser {
+  type MyParser[+A] = ((Location) => ParseResult[A])
+}
+
+object MyParsers extends Parsers[MyParser] {
+  override def run[A](p: MyParser[A])(input: String): ParseResult[A] = p(Location(input))
+
+  def consume(loc: Location, s: String): ParseResult[String] = Success(s, loc.advanceBy(s.length))
+
+  // Exercise 13: Implement string, regex, succeed, and slice for this initial representation of Parser.
+  override implicit def string(s: String): MyParser[String] = loc =>
+    if(loc.input.startsWith(s))
+      consume(loc, s)
+    else
+      Failure(loc.toError(s"expected string $s"))
+
+  override implicit def regex(r: Regex): MyParser[String] = loc =>
+    r.findFirstIn(loc.input) match {
+      case Some(s) => consume(loc, s)
+      case None => Failure(loc.toError(s"expected regex $r"))
+    }
+
+  override def succeed[A](a: A): MyParser[A] = loc =>
+    Success(a, loc)
+
+  override def slice[A](p: MyParser[A]): MyParser[String] = loc =>
+    p(loc) match {
+      case Success(_, ahead) => Success(loc.input.substring(loc.offset, ahead.offset), ahead)
+      case Failure(error) => Failure(error)
+    }
+
+  override def or[A](p1: MyParser[A], p2: => MyParser[A]): MyParser[A] = ???
+
+  override def flatMap[A, B](p: MyParser[A])(f: (A) => MyParser[B]): MyParser[B] = ???
+
+  override def describe[A](p: MyParser[A], description: String): MyParser[A] = ???
+
+  override def important[A](p: MyParser[A]): MyParser[A] = ???
+
+  override def lick[A](p: MyParser[A]): Boolean = ???
+}
