@@ -33,7 +33,7 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   def map[A,B](p: Parser[A])(f: A => B): Parser[B] =
     flatMap(p)(a => succeed(f(a)))
 
-  // Exercise 1: Using product , implement the now-familiar combinator map2 and then use this to implement many1 in terms of many.
+  // Exercise 1: Using product, implement the now-familiar combinator map2 and then use this to implement many1 in terms of many.
   def map2[A, B, C](p1: Parser[A], p2: => Parser[B])(f: (A, B) => C): Parser[C] =
     flatMap(p1)(a => map(p2)(b => f(a, b)))
 
@@ -80,16 +80,16 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
     "\\s*".r
 
   def double: Parser[Double] =
-    regex("""-?\d+(\.\d+([eE][+-]\d+)?)?""".r).map(_.toDouble)
+    regex("""-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?""".r).map(_.toDouble)
 
   def literal[A](lit: String)(a: A): Parser[A] =
     slice(lit).map(_ => a)
 
   def trimLeft[L, A](left: Parser[L], p: Parser[A]): Parser[A] =
-    map2(slice(left), p)((_, a) => a)
+    map2(slice(many(left)), p)((_, a) => a)
 
   def trimRight[A, R](p: Parser[A], right: Parser[R]): Parser[A] =
-    map2(p, slice(right))((a, _) => a)
+    map2(p, slice(many(right)))((a, _) => a)
 
   def trim[L, A, R](left: Parser[L], p: Parser[A], right: Parser[R]): Parser[A] =
     for {
@@ -104,9 +104,6 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   def manySep[S, A](s: Parser[S], p: Parser[A]): Parser[List[A]] =
     map2(p, many(trimLeft(s, p)))(_ :: _)
 
-  def just[A](p: Parser[A]): Parser[A] =
-    trim("\\A".r, p, "\\z".r)
-
   // Exercise 6: Using flatMap and any other combinators, write the context-sensitive parser we couldn’t express earlier.
   def numberOfAs: Parser[List[Char]] =
     digit.flatMap(s => listOfN(s.toInt, char('a')))
@@ -115,8 +112,8 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
     def |[B>:A](p2: => Parser[B]): Parser[B] = or(p2)
     def or[B>:A](p2: => Parser[B]): Parser[B] = self.or(p,p2)
 
-    def &[B](p2: => Parser[B]): Parser[B] = and(p2)
-    def and[B](p2: => Parser[B]): Parser[B] = self.trimLeft(p, p2)
+    def ~>[B](p2: => Parser[B]): Parser[B] = self.trimLeft(p, p2)
+    def <~[B](p2: => Parser[B]): Parser[A] = self.trimRight(p, p2)
 
     def flatMap[B](f: A => Parser[B]): Parser[B] =
       self.flatMap(p)(f)
@@ -157,9 +154,11 @@ case class Location(input: String, offset: Int = 0) {
   def toError(msg: String): ParseError =
     ParseError(List((this, msg)))
 
-  def advanceBy(n: Int): Location = copy(offset = offset+n)
+  def advanceBy(n: Int): Location = copy(offset = offset + n)
 
   def advanceBy(s: String): Location = if(input.startsWith(s)) advanceBy(s.length) else this
+
+  def currentPos: String = input.drop(offset)
 
   /* Returns the line corresponding to this location */
   def currentLine: String =
@@ -176,36 +175,62 @@ case class ParseError(
     stack
       .groupBy { case (loc, _) => loc }
       .map { case (loc, errors) =>
-        s"Errors at ${loc.line}:${loc.col}: ${errors.map(_._2).mkString("\n")}"
+        s"Errors at ${loc.line}:${loc.col}: ${errors.map(_._2).mkString("\n")}\n\tnear: ${loc.currentLine}"
       }
       .mkString("\n")
   }
+
+  def push(loc: Location, msg: String): ParseError =
+    copy(stack = (loc, msg) :: stack)
 }
 
-trait ParseResult[+A]
-case class Success[+A](value: A, ahead: Location) extends ParseResult[A]
-case class Failure(error: ParseError) extends ParseResult[Nothing]
+trait ParseResult[+A] {
+  def mapError(f: ParseError => ParseError): ParseResult[A] = this match {
+    case Failure(e, c) => Failure(f(e), c)
+    case _ => this
+  }
+
+  def commit: ParseResult[A] = this match {
+    case Failure(e, false) => Failure(e, isCommited = true)
+    case _ => this
+  }
+}
+case class Success[+A](value: A, ahead: Location) extends ParseResult[A] {
+  def advanceSuccess(n: Int): ParseResult[A] = this match {
+    case Success(a, m) => Success(a, m.advanceBy(n))
+    case _ => this
+  }
+}
+case class Failure(error: ParseError, isCommited: Boolean = false) extends ParseResult[Nothing] {
+  def addCommit(isCommitted: Boolean): ParseResult[Nothing] = this match {
+    case Failure(e,c) => Failure(e, c || isCommitted)
+    case _ => this
+  }
+
+  override def toString: String = error.show()
+}
 
 object MyParser {
   type MyParser[+A] = ((Location) => ParseResult[A])
 }
 
 object MyParsers extends Parsers[MyParser] {
-  override def run[A](p: MyParser[A])(input: String): ParseResult[A] = p(Location(input))
-
   def consume(loc: Location, s: String): ParseResult[String] = Success(s, loc.advanceBy(s.length))
 
+  override def run[A](p: MyParser[A])(input: String): ParseResult[A] = p(Location(input))
+
   // Exercise 13: Implement string, regex, succeed, and slice for this initial representation of Parser.
+  // Exercise 14: Revise your implementation of string to use scope and/or label to provide a meaningful error message in the event of an error.
   override implicit def string(s: String): MyParser[String] = loc =>
-    if(loc.input.startsWith(s))
+    if(loc.currentPos.startsWith(s))
       consume(loc, s)
     else
       Failure(loc.toError(s"expected string $s"))
 
   override implicit def regex(r: Regex): MyParser[String] = loc =>
-    r.findFirstIn(loc.input) match {
+    r.findPrefixOf(loc.currentPos) match {
       case Some(s) => consume(loc, s)
-      case None => Failure(loc.toError(s"expected regex $r"))
+      case _ => Failure(loc.toError(s"expected regex $r"))
     }
 
   override def succeed[A](a: A): MyParser[A] = loc =>
@@ -214,16 +239,27 @@ object MyParsers extends Parsers[MyParser] {
   override def slice[A](p: MyParser[A]): MyParser[String] = loc =>
     p(loc) match {
       case Success(_, ahead) => Success(loc.input.substring(loc.offset, ahead.offset), ahead)
-      case Failure(error) => Failure(error)
+      case Failure(error, c) => Failure(error, c)
     }
 
-  override def or[A](p1: MyParser[A], p2: => MyParser[A]): MyParser[A] = ???
+  override def or[A](p1: MyParser[A], p2: => MyParser[A]): MyParser[A] = loc =>
+    p1(loc) match {
+      case Failure(_, false) => p2(loc)
+      case r => r
+    }
 
-  override def flatMap[A, B](p: MyParser[A])(f: (A) => MyParser[B]): MyParser[B] = ???
+  // Exercise 15: Implement the rest of the primitives, including run, using this representation of Parser, and try running your JSON parser on various inputs.
+  override def flatMap[A, B](p: MyParser[A])(f: (A) => MyParser[B]): MyParser[B] = loc =>
+    p(loc) match {
+      case Success(v, ahead) => f(v)(ahead)
+      case Failure(e, c) => Failure(e, c)
+    }
 
-  override def describe[A](p: MyParser[A], description: String): MyParser[A] = ???
+  override def describe[A](p: MyParser[A], description: String): MyParser[A] = loc =>
+    p(loc).mapError(_.push(loc, description))
 
-  override def important[A](p: MyParser[A]): MyParser[A] = ???
+  override def important[A](p: MyParser[A]): MyParser[A] = loc =>
+    p(loc).commit
 
   override def lick[A](p: MyParser[A]): Boolean = ???
 }

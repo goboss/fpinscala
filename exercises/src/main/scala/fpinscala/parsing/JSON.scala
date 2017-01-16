@@ -27,18 +27,33 @@ object JSON {
     def jbool: Parser[JBool] =
       literal("true")(JBool(true)) | literal("false")(JBool(false))
     def jarray: Parser[JArray] =
-      trim("[", manySep(comma, jvalue), "]").map(l => JArray(l.toIndexedSeq))
+      trim(trimSpace("["), manySep(comma, jvalue), trimSpace("]")).map(l => JArray(l.toIndexedSeq))
     def jmapping: Parser[(String, JSON)] =
-      jstring.map(_.get) ** (trimSpace(":") & jvalue)
+      jstring.map(_.get) ** (trimSpace(":") ~> jvalue)
     def jobject: Parser[JObject] =
       trim(
         "{",
-        manySep(comma, trimSpace(jmapping)),
+        trimSpace(manySep(comma, jmapping)),
         "}"
       ).map(ms => JObject(ms.toMap))
     def jvalue: Parser[JSON] = jnull | jnumber | jstring | jbool | jarray | jobject
 
-    just(trimSpace(jvalue))
+    // in case of json it would be better to strip input of all spaces, since it is not space sensitive, but this is fun :)
+    trimSpace(jvalue)
   }
 
+  def test = {
+    val jsonTxt = """
+      {
+        "Company name" : "Microsoft Corporation",
+        "Ticker"  : "MSFT",
+        "Active"  : true,
+        "Price"   : 30.66,
+        "Shares outstanding" : 8.38e9,
+        "Related companies" : [ "HPQ", "IBM", "YHOO", "DELL", "GOOG" ]
+      }
+    """
+
+    MyParsers.run(jsonParser(MyParsers))(jsonTxt)
+  }
 }
