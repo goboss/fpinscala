@@ -166,22 +166,32 @@ case class Location(input: String, offset: Int = 0) {
     else ""
 }
 
+// Exercise 18: Change the representation of ParseError to keep track of errors that occurred in other branches of the parser.
 case class ParseError(
   stack: List[(Location, String)] = List.empty,
   otherFailures: List[ParseError] = List.empty
 ) {
 
-  def show(): String = {
+  // Exercise 16: Come up with a nice way of formatting a ParseError for human consumption.
+  def show: String = {
     stack
       .groupBy { case (loc, _) => loc }
       .map { case (loc, errors) =>
-        s"Errors at ${loc.line}:${loc.col}: ${errors.map(_._2).mkString("\n")}\n\tnear: ${loc.currentLine}"
+        val errorDesc = errors.map(_._2).mkString("\n")
+
+        s"Error at ${loc.line}:${loc.col}: $errorDesc\nnear: ${loc.currentLine}" + (
+          if(otherFailures.nonEmpty) s"\n\nOther problems:\n" + otherFailures.map(_.show).mkString("\n")
+          else ""
+        )
       }
       .mkString("\n")
   }
 
   def push(loc: Location, msg: String): ParseError =
     copy(stack = (loc, msg) :: stack)
+
+  def pushOther(error: ParseError): ParseError =
+    copy(otherFailures = error +: otherFailures)
 }
 
 trait ParseResult[+A] {
@@ -207,7 +217,7 @@ case class Failure(error: ParseError, isCommited: Boolean = false) extends Parse
     case _ => this
   }
 
-  override def toString: String = error.show()
+  override def toString: String = error.show
 }
 
 object MyParser {
@@ -236,6 +246,10 @@ object MyParsers extends Parsers[MyParser] {
   override def succeed[A](a: A): MyParser[A] = loc =>
     Success(a, loc)
 
+  // Exercise 17: Think of a way of modifying the Parser representation to make slicing more efficient.
+  // One way to achieve this is to switch parsers into "lookahead" mode (via some flag or param) in which they do not
+  // consume input, but simply try matching and returning the longest prefix.
+  // This would require modifying primitive operations to act accordingly depending on the flag.
   override def slice[A](p: MyParser[A]): MyParser[String] = loc =>
     p(loc) match {
       case Success(_, ahead) => Success(loc.input.substring(loc.offset, ahead.offset), ahead)
@@ -244,7 +258,7 @@ object MyParsers extends Parsers[MyParser] {
 
   override def or[A](p1: MyParser[A], p2: => MyParser[A]): MyParser[A] = loc =>
     p1(loc) match {
-      case Failure(_, false) => p2(loc)
+      case Failure(e, false) => p2(loc).mapError(_.pushOther(e))
       case r => r
     }
 
