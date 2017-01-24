@@ -36,10 +36,12 @@ object JSON {
         trimSpace(manySep(comma, jmapping)),
         "}"
       ).map(ms => JObject(ms.toMap))
-    def jvalue: Parser[JSON] = jnull | jnumber | jstring | jbool | jarray | jobject
+    def jliteral: Parser[JSON] = jnull | jbool | jnumber | jstring
+    def jvalue: Parser[JSON] = describe(jliteral, "literal") | describe(jarray, "array") | describe(jobject, "object")
 
     // in case of json it would be better to strip input of all spaces, since it is not space sensitive, but this is fun :)
-    trimSpace(jvalue)
+    // TODO: maybe add ignoreSpaces?
+    describe(trimSpace(jvalue), "parse JSON")
   }
 
   def test = {

@@ -1,5 +1,6 @@
 package fpinscala.parsing
 
+import fpinscala.parsing.JSON.jsonParser
 import fpinscala.parsing.MyParser.MyParser
 import fpinscala.testing.{Gen, Prop}
 import fpinscala.testing.Prop.forAll
@@ -122,7 +123,10 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
     def map2[B, C](p2: Parser[B])(f: (A, B) => C): Parser[C] = self.map2(p, p2)(f)
 
     def many: Parser[List[A]] = self.many(p)
+    def * : Parser[List[A]] = many
+
     def many1: Parser[List[A]] = self.many1(p)
+    def + : Parser[List[A]] = many1
 
     def slice: Parser[String] = self.slice(p)
 
@@ -166,7 +170,7 @@ case class Location(input: String, offset: Int = 0) {
     else ""
 }
 
-// Exercise 18: Change the representation of ParseError to keep track of errors that occurred in other branches of the parser.
+// Exercise 18: Change `the representation of ParseError to keep track of errors that occurred in other branches of the parser.
 case class ParseError(
   stack: List[(Location, String)] = List.empty,
   otherFailures: List[ParseError] = List.empty
@@ -177,21 +181,36 @@ case class ParseError(
     stack
       .groupBy { case (loc, _) => loc }
       .map { case (loc, errors) =>
-        val errorDesc = errors.map(_._2).mkString("\n")
+        val errorDesc = errors.map(_._2).mkString(" -> ")
 
-        s"Error at ${loc.line}:${loc.col}: $errorDesc\nnear: ${loc.currentLine}" + (
-          if(otherFailures.nonEmpty) s"\n\nOther problems:\n" + otherFailures.map(_.show).mkString("\n")
-          else ""
-        )
+        s"Errors at ${loc.line}:${loc.col}, near '${loc.currentLine}':\n" +
+        s"\t$errorDesc\n" +
+        s"Also:\n" +
+        otherFailures.map(_.showLocation(loc)).map("\t" + _).mkString("\n")
       }
       .mkString("\n")
   }
 
+  def showLocation(location: Location): String =
+    stack.filter(_._1 == location).map(_._2).mkString(" -> ")
+
   def push(loc: Location, msg: String): ParseError =
-    copy(stack = (loc, msg) :: stack)
+    copy(stack = (loc, msg) :: stack, otherFailures = otherFailures.map(_.push(loc, msg)))
 
   def pushOther(error: ParseError): ParseError =
-    copy(otherFailures = error +: otherFailures)
+    copy(otherFailures = error :: otherFailures)
+
+  def flatten: ParseError = {
+    def go(remain: List[ParseError], acc: List[ParseError]): List[ParseError] =
+      remain match {
+        case Nil =>
+          acc.reverse
+        case h :: t =>
+          go(t ++ go(h.otherFailures, List.empty), h.copy(otherFailures = List.empty) :: acc)
+      }
+
+    copy(otherFailures = go(otherFailures, List.empty))
+  }
 }
 
 trait ParseResult[+A] {
@@ -235,12 +254,12 @@ object MyParsers extends Parsers[MyParser] {
     if(loc.currentPos.startsWith(s))
       consume(loc, s)
     else
-      Failure(loc.toError(s"expected string $s"))
+      Failure(loc.toError(s"expected string '$s'"))
 
   override implicit def regex(r: Regex): MyParser[String] = loc =>
     r.findPrefixOf(loc.currentPos) match {
       case Some(s) => consume(loc, s)
-      case _ => Failure(loc.toError(s"expected regex $r"))
+      case _ => Failure(loc.toError(s"expected regex '$r'"))
     }
 
   override def succeed[A](a: A): MyParser[A] = loc =>
@@ -258,7 +277,7 @@ object MyParsers extends Parsers[MyParser] {
 
   override def or[A](p1: MyParser[A], p2: => MyParser[A]): MyParser[A] = loc =>
     p1(loc) match {
-      case Failure(e, false) => p2(loc).mapError(_.pushOther(e))
+      case Failure(e, false) => p2(loc).mapError(_.pushOther(e).flatten)
       case r => r
     }
 
