@@ -1,26 +1,42 @@
 package fpinscala.parsing
 
-import fpinscala.parsing.JSON.jsonParser
 import fpinscala.parsing.MyParser.MyParser
-import fpinscala.testing.{Gen, Prop}
 import fpinscala.testing.Prop.forAll
+import fpinscala.testing.{Gen, Prop}
 
-import scala.language.higherKinds
-import scala.language.implicitConversions
 import scala.annotation.tailrec
+import scala.language.{higherKinds, implicitConversions}
 import scala.util.matching.Regex
 
 trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trait
-  // TODO: document these methods
+  // Run the parser p returning ParseResult.
   def run[A](p: Parser[A])(input: String): ParseResult[A]
+
+  // Create a parser that always succeeds with the provided value.
   def succeed[A](a: A): Parser[A]
+
+  // Run the first parser and if it fails then try the other one.
   def or[A](p1: Parser[A], p2: => Parser[A]): Parser[A]
+
+  // Run parser p and if it succeeds apply the function f to the result creating a new parser.
   def flatMap[A,B](p: Parser[A])(f: A => Parser[B]): Parser[B]
+
+  // If parser p fails convert it to other parser
+  def recoverWith[A, B >: A](p: Parser[A])(f: Failure => Parser[B]): Parser[B]
+
+  // Run parser p, but instead of returning its result return the part (slice) of input that was consumed.
   def slice[A](p: Parser[A]): Parser[String]
 
+  // Create parser that accepts the string s
   implicit def string(s: String): Parser[String]
+
+  // Create parser that accepts the regex r
   implicit def regex(r: Regex): Parser[String]
+
+  // Decorate parser with ops
   implicit def operators[A](p: Parser[A]): ParserOps[A] = ParserOps[A](p)
+
+  // Convert a to string parser
   implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]): ParserOps[String] = ParserOps(f(a))
 
   // Exercise 10: Spend some time discovering a nice set of combinators for expressing what errors get reported by a Parser
@@ -119,6 +135,9 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
     def flatMap[B](f: A => Parser[B]): Parser[B] =
       self.flatMap(p)(f)
 
+    def recoverWith[B >: A](f: Failure => Parser[B]): Parser[B] =
+      self.recoverWith[A, B](p)(f)
+
     def map[B](f: A => B): Parser[B] = self.map(p)(f)
     def map2[B, C](p2: Parser[B])(f: (A, B) => C): Parser[C] = self.map2(p, p2)(f)
 
@@ -168,6 +187,8 @@ case class Location(input: String, offset: Int = 0) {
   def currentLine: String =
     if (input.length > 1) input.lines.drop(line-1).next
     else ""
+
+  def hasMore: Boolean = offset < input.length
 }
 
 // Exercise 18: Change `the representation of ParseError to keep track of errors that occurred in other branches of the parser.
@@ -182,11 +203,11 @@ case class ParseError(
       .groupBy { case (loc, _) => loc }
       .map { case (loc, errors) =>
         val errorDesc = errors.map(_._2).mkString(" -> ")
+        val otherDesc = otherFailures.map(_.showLocation(loc)).map("\t" + _).mkString("\n")
 
         s"Errors at ${loc.line}:${loc.col}, near '${loc.currentLine}':\n" +
-        s"\t$errorDesc\n" +
-        s"Also:\n" +
-        otherFailures.map(_.showLocation(loc)).map("\t" + _).mkString("\n")
+        s"\t$errorDesc\n" + (if (otherDesc.nonEmpty) "Also:\n" + otherDesc else "")
+
       }
       .mkString("\n")
   }
@@ -286,6 +307,12 @@ object MyParsers extends Parsers[MyParser] {
     p(loc) match {
       case Success(v, ahead) => f(v)(ahead)
       case Failure(e, c) => Failure(e, c)
+    }
+
+  override def recoverWith[A, B >: A](p: MyParser[A])(f: (Failure) => MyParser[B]): MyParser[B] = loc =>
+    p(loc) match {
+      case failure: Failure => f(failure)(loc)
+      case success => success
     }
 
   override def describe[A](p: MyParser[A], description: String): MyParser[A] = loc =>
