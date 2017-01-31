@@ -14,6 +14,8 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   // Create a parser that always succeeds with the provided value.
   def succeed[A](a: A): Parser[A]
 
+  def fail[A](error: ParseError): Parser[A]
+
   // Run the first parser and if it fails then try the other one.
   def or[A](p1: Parser[A], p2: => Parser[A]): Parser[A]
 
@@ -164,7 +166,13 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
       equal(p, p.map(a => a))(in)
 
     // Exercise 2: Try coming up with laws to specify the behavior of product.
-    def productLaw[A, B](p: Parser[A])(in: Gen[String]): Prop =
-      equal(p ** p, p.map(a => (a, a)))(in)
+    def productLaw1[A, B](a: A, b: B)(in: Gen[String]): Prop =
+      equal(succeed(a) ** succeed(b), succeed((a, b)))(in)
+
+    def productLaw2[A](a: A)(in: Gen[String]): Prop =
+      equal(fail(ParseError()) ** succeed(a), fail(ParseError()))(in)
+
+    def productLaw3[A](a: A)(in: Gen[String]): Prop =
+      equal(succeed(a) ** fail(ParseError()), fail(ParseError()))(in)
   }
 }

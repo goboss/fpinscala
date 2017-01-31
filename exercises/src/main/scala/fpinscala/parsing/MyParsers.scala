@@ -29,6 +29,9 @@ object MyParsers extends Parsers[MyParser] {
   override def succeed[A](a: A): MyParser[A] = loc =>
     Success(a, loc)
 
+  override def fail[A](error: ParseError): MyParser[A] = loc =>
+    Failure(error)
+
   // Exercise 17: Think of a way of modifying the Parser representation to make slicing more efficient.
   // One way to achieve this is to switch parsers into "lookahead" mode (via some flag or param) in which they do not
   // consume input, but simply try matching and returning the longest prefix.
