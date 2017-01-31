@@ -39,23 +39,6 @@ object JSON {
     def jliteral: Parser[JSON] = jnull | jbool | jnumber | jstring
     def jvalue: Parser[JSON] = describe(jliteral, "literal") | describe(jarray, "array") | describe(jobject, "object")
 
-    // in case of json it would be better to strip input of all spaces, since it is not space sensitive, but this is fun :)
-    // TODO: maybe add ignoreSpaces?
     describe(trimSpace(jvalue), "parse JSON")
-  }
-
-  def test = {
-    val jsonTxt = """
-      {
-        "Company name" : "Microsoft Corporation",
-        "Ticker"  : "MSFT",
-        "Active"  : true,
-        "Price"   : 30.66,
-        "Shares outstanding" : 8.38e9,
-        "Related companies" : [ "HPQ", "IBM", "YHOO", "DELL", "GOOG" ]
-      }
-    """
-
-    MyParsers.run(jsonParser(MyParsers))(jsonTxt)
   }
 }
