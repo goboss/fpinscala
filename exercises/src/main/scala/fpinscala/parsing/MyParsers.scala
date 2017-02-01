@@ -67,5 +67,6 @@ object MyParsers extends Parsers[MyParser] {
   override def important[A](p: MyParser[A]): MyParser[A] = loc =>
     p(loc).commit
 
-  override def lick[A](p: MyParser[A]): Boolean = ???
+  override def lazyP[A](parser: => MyParser[A]): MyParser[A] = loc =>
+    parser(loc)
 }

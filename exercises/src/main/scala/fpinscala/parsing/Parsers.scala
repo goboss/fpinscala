@@ -80,16 +80,11 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   // Exercise 5: We could also deal with non-strictness with a separate combinator like we did in chapter 7.
   // Try this here and make the necessary changes to your existing combinators.
   // What do you think of that approach in this instance?
-  def lick[A](p: Parser[A]): Boolean
-  def manyLicks[A](p: Parser[A]): Parser[List[A]] = {
-    @tailrec
-    def go(acc: Parser[List[A]]): Parser[List[A]] = {
-      if(lick(p)) go(map2(p, acc)(_ :: _))
-      else acc.map(_.reverse)
-    }
-
-    go(succeed(List.empty))
-  }
+  def map2Strict[A, B, C](p1: Parser[A], p2: Parser[B])(f: (A, B) => C): Parser[C] =
+    flatMap(p1)(a => map(p2)(b => f(a, b)))
+  def lazyP[A](parser: => Parser[A]): Parser[A]
+  def manyStrict[A](p: Parser[A]): Parser[List[A]] =
+    map2Strict(p, lazyP(manyStrict(p)))(_ :: _) or succeed(List.empty)
 
   def digit: Parser[String] =
     "\\d".r
