@@ -65,6 +65,9 @@ case class ParseError(
 }
 
 trait ParseResult[+A] {
+  def isSuccess: Boolean
+  def isFailure: Boolean = !isSuccess
+
   def mapError(f: ParseError => ParseError): ParseResult[A] = this match {
     case Failure(e, c) => Failure(f(e), c)
     case _ => this
@@ -76,12 +79,16 @@ trait ParseResult[+A] {
   }
 }
 case class Success[+A](value: A, ahead: Location) extends ParseResult[A] {
+  override def isSuccess: Boolean = true
+
   def advanceSuccess(n: Int): ParseResult[A] = this match {
     case Success(a, m) => Success(a, m.advanceBy(n))
     case _ => this
   }
 }
 case class Failure(error: ParseError, isCommited: Boolean = false) extends ParseResult[Nothing] {
+  override def isSuccess: Boolean = false
+
   def addCommit(isCommitted: Boolean): ParseResult[Nothing] = this match {
     case Failure(e,c) => Failure(e, c || isCommitted)
     case _ => this

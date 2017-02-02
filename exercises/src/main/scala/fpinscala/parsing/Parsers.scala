@@ -169,5 +169,55 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
 
     def productLaw3[A](a: A)(in: Gen[String]): Prop =
       equal(succeed(a) ** fail(ParseError()), fail(ParseError()))(in)
+
+    def stringLaw1(in: Gen[String]): Prop =
+      equal(string(""), succeed(""))(in)
+
+    def stringLaw2(in: Gen[String]): Prop =
+      forAll(in)(s => run(string(s))(s).isSuccess)
+
+    def stringLaw3(in: Gen[String]): Prop =
+      forAll(in)(s => run(string(s))(s.tail).isFailure)
+
+    def regexLaw1(in: Gen[String]): Prop =
+      forAll(in)(s => run(regex("".r))(s).isSuccess)
+
+    def regexLaw2(in: Gen[String]): Prop =
+      forAll(in)(s => run(regex(".*".r))(s).isSuccess)
+
+    def succeedLaw(in: Gen[String]): Prop =
+      forAll(in)(s => run(succeed(()))(s).isSuccess)
+
+    def failLaw(in: Gen[String]): Prop =
+      forAll(in)(s => run(fail(ParseError()))(s).isFailure)
+
+    def sliceLaw(in: Gen[String]): Prop =
+      forAll(in) { s =>
+        run(slice(string(s)))(s) match {
+          case Success(v, _) =>
+            v == s
+          case _ =>
+            false
+        }
+      }
+
+    def orLaw[A, B](p1: Parser[A], p2: Parser[B])(in: Gen[String]): Prop =
+      forAll(in) { s =>
+        val result = run(p1 or p2)(s)
+        (run(p1)(s), run(p2)(s)) match {
+          case (succ1 @ Success(_, _), _) =>
+            result == succ1
+          case (Failure(_, false), succ2 @ Success(_, _)) =>
+            result == succ2
+          case _ =>
+            result.isFailure
+        }
+      }
+
+    def flatMapLaw[A](p: Parser[A])(in: Gen[String]): Prop =
+      equal(p.flatMap(succeed), p)(in)
+
+    def recoverWithLaw[A](p: Parser[A])(in: Gen[String]): Prop =
+      equal(fail(ParseError()).recoverWith(_ => p), p)(in)
   }
 }
