@@ -103,7 +103,7 @@ object Gen {
     choose(0, xs.length).map(xs.apply)
 
   def listOfN[A](n: Int, g: Gen[A]): Gen[List[A]] =
-    Gen(State.sequence(List.fill(n)(g.sample)), unboundedDomain)
+    Gen(State.sequence(List.fill(n)(g.sample)), g.domain.map(_.map(a => List.fill(n)(a))))
 
   // Exercise 13: Define listOf1 for generating nonempty lists, and then update your specification of max to use this generator.
   def listOf1[A](g: Gen[A]): SGen[List[A]] =
@@ -157,6 +157,12 @@ object Gen {
 
   def funToListOfN[A, B](n: Int, g: Gen[B]): Gen[A => List[B]] =
     fun(Gen.listOfN(n, g))
+
+  def option[A](g: Gen[A]): Gen[scala.Option[A]] =
+    boolean.flatMap {
+      case true => g.map(scala.Some.apply)
+      case false => Gen.unit(scala.None)
+    }
 }
 
 case class SGen[+A](forSize: Int => Gen[A]) {

@@ -10,47 +10,71 @@ trait Monoid[A] {
 }
 
 object Monoid {
-
   val stringMonoid = new Monoid[String] {
-    def op(a1: String, a2: String) = a1 + a2
+    def op(a1: String, a2: String): String = a1 + a2
     val zero = ""
   }
 
   def listMonoid[A] = new Monoid[List[A]] {
-    def op(a1: List[A], a2: List[A]) = a1 ++ a2
+    def op(a1: List[A], a2: List[A]): List[A] = a1 ++ a2
     val zero = Nil
   }
 
-  val intAddition: Monoid[Int] = sys.error("todo")
+  // Exercise 1: Give Monoid instances for integer addition and multiplication as well as the Boolean operators.
+  val intAddition: Monoid[Int] = new Monoid[Int] {
+    def op(a1: Int, a2: Int): Int = a1 + a2
+    val zero: Int = 0
+  }
 
-  val intMultiplication: Monoid[Int] = sys.error("todo")
+  val intMultiplication: Monoid[Int] = new Monoid[Int] {
+    def op(a1: Int, a2: Int): Int = a1 * a2
+    val zero: Int = 1
+  }
 
-  val booleanOr: Monoid[Boolean] = sys.error("todo")
+  val booleanOr: Monoid[Boolean] = new Monoid[Boolean] {
+    def op(a1: Boolean, a2: Boolean): Boolean = a1 || a2
+    val zero: Boolean = false
+  }
 
-  val booleanAnd: Monoid[Boolean] = sys.error("todo")
+  val booleanAnd: Monoid[Boolean] = new Monoid[Boolean] {
+    def op(a1: Boolean, a2: Boolean): Boolean = a1 && a2
+    val zero: Boolean = true
+  }
 
-  def optionMonoid[A]: Monoid[Option[A]] = sys.error("todo")
+  // Exercise 2: Give a Monoid instance for combining Option values.
+  def optionMonoid[A]: Monoid[Option[A]] = new Monoid[Option[A]] {
+    def op(a1: Option[A], a2: Option[A]): Option[A] = a1 orElse a2
+    val zero: Option[A] = None
+  }
 
-  def endoMonoid[A]: Monoid[A => A] = sys.error("todo")
-
-  // TODO: Placeholder for `Prop`. Remove once you have implemented the `Prop`
-  // data type from Part 2.
-  trait Prop {}
-
-  // TODO: Placeholder for `Gen`. Remove once you have implemented the `Gen`
-  // data type from Part 2.
+  // Exercise 3: Write a monoid for endofunctions.
+  def endoMonoid[A]: Monoid[A => A] = new Monoid[(A) => A] {
+    def op(a1: (A) => A, a2: (A) => A): (A) => A = a1 andThen a2
+    val zero: (A) => A = identity[A]
+  }
 
   import fpinscala.testing._
   import Prop._
-  def monoidLaws[A](m: Monoid[A], gen: Gen[A]): Prop = sys.error("todo")
+  // Exercise 4: Use the property-based testing framework we developed in part 2 to implement a property for the monoid laws.
+  // Use your property to test the monoids we’ve written.
+  // Note: since we cannot test functions for equality endoMonoid cannot be tested.
+  def monoidLaws[A](m: Monoid[A], gen: Gen[A]): Prop =
+    forAll(Gen.listOfN(3, gen)) { case a1 :: a2 :: a3 :: Nil =>
+      import m.op
+
+      op(a1, m.zero) == a1 &&
+      op(m.zero, a1) == a1 &&
+      op(op(a1, a2), a3) == op(a1, op(a2, a3))
+    }
 
   def trimMonoid(s: String): Monoid[String] = sys.error("todo")
 
   def concatenate[A](as: List[A], m: Monoid[A]): A =
-    sys.error("todo")
+    as.foldLeft(m.zero)(m.op)
 
+  // Exercise 5: Implement foldMap.
   def foldMap[A, B](as: List[A], m: Monoid[B])(f: A => B): B =
-    sys.error("todo")
+    as.foldLeft(m.zero)((acc, a) => m.op(acc, f(a)))
 
   def foldRight[A, B](as: List[A])(z: B)(f: (A, B) => B): B =
     sys.error("todo")
@@ -74,7 +98,7 @@ object Monoid {
   def parFoldMap[A,B](v: IndexedSeq[A], m: Monoid[B])(f: A => B): Par[B] = 
     sys.error("todo") 
 
-  val wcMonoid: Monoid[WC] = sys.error("todo")
+  def wcMonoid: Monoid[WC] = sys.error("todo")
 
   def count(s: String): Int = sys.error("todo")
 
