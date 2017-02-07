@@ -1,7 +1,6 @@
 package fpinscala.monoids
 
 import fpinscala.parallelism.Nonblocking._
-import fpinscala.parallelism.Nonblocking.Par.toParOps // infix syntax for `Par.map`, `Par.flatMap`, etc
 import language.higherKinds
 
 trait Monoid[A] {
@@ -53,6 +52,11 @@ object Monoid {
     val zero: (A) => A = identity[A]
   }
 
+  def reverse[A](m: Monoid[A]): Monoid[A] = new Monoid[A] {
+    def op(a1: A, a2: A): A = m.op(a2, a1)
+    override def zero: A = m.zero
+  }
+
   import fpinscala.testing._
   import Prop._
   // Exercise 4: Use the property-based testing framework we developed in part 2 to implement a property for the monoid laws.
@@ -76,14 +80,25 @@ object Monoid {
   def foldMap[A, B](as: List[A], m: Monoid[B])(f: A => B): B =
     as.foldLeft(m.zero)((acc, a) => m.op(acc, f(a)))
 
+  // Exercise 6: The foldMap function can be implemented using either foldLeft or foldRight.
+  // But you can also write foldLeft and foldRight using foldMap! Try it.
   def foldRight[A, B](as: List[A])(z: B)(f: (A, B) => B): B =
-    sys.error("todo")
+    foldMap(as, reverse(endoMonoid[B]))(f.curried)(z)
 
   def foldLeft[A, B](as: List[A])(z: B)(f: (B, A) => B): B =
-    sys.error("todo")
+    foldMap(as, endoMonoid[B])(a => b => f(b, a))(z)
 
-  def foldMapV[A, B](as: IndexedSeq[A], m: Monoid[B])(f: A => B): B =
-    sys.error("todo")
+  // Exercise 7: Implement a foldMap for IndexedSeq.
+  // Your implementation should use the strategy of splitting the sequence in two,
+  // recursively processing each half, and then adding the answers together with the monoid.
+  def foldMapV[A, B](as: IndexedSeq[A], m: Monoid[B])(f: A => B): B = {
+    if(as.size < 2)
+      as.headOption.map(f).getOrElse(m.zero)
+    else {
+      val (l, r) = as.splitAt(as.length / 2)
+      m.op(foldMapV(l, m)(f), foldMapV(r, m)(f))
+    }
+  }
 
   def ordered(ints: IndexedSeq[Int]): Boolean =
     sys.error("todo")
@@ -91,12 +106,6 @@ object Monoid {
   sealed trait WC
   case class Stub(chars: String) extends WC
   case class Part(lStub: String, words: Int, rStub: String) extends WC
-
-  def par[A](m: Monoid[A]): Monoid[Par[A]] = 
-    sys.error("todo")
-
-  def parFoldMap[A,B](v: IndexedSeq[A], m: Monoid[B])(f: A => B): Par[B] = 
-    sys.error("todo") 
 
   def wcMonoid: Monoid[WC] = sys.error("todo")
 
