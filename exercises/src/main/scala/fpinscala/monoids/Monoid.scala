@@ -1,7 +1,10 @@
 package fpinscala.monoids
 
 import fpinscala.parallelism.Nonblocking._
+
 import language.higherKinds
+import scala.math
+import scala.math.min
 
 trait Monoid[A] {
   def op(a1: A, a2: A): A
@@ -54,7 +57,7 @@ object Monoid {
 
   def reverse[A](m: Monoid[A]): Monoid[A] = new Monoid[A] {
     def op(a1: A, a2: A): A = m.op(a2, a1)
-    override def zero: A = m.zero
+    val zero: A = m.zero
   }
 
   import fpinscala.testing._
@@ -100,16 +103,58 @@ object Monoid {
     }
   }
 
-  def ordered(ints: IndexedSeq[Int]): Boolean =
-    sys.error("todo")
+  // Exercise 8: Also implement a parallel version of foldMap using the library we developed in chapter 7
+  def par[A](m: Monoid[A]): Monoid[Par[A]] = new Monoid[Par[A]] {
+    def op(a1: Par[A], a2: Par[A]): Par[A] = Par.map2(a1, a2)(m.op)
+    val zero: Par[A] = Par.unit(m.zero)
+  }
+
+  def parFoldMap[A,B](as: IndexedSeq[A], m: Monoid[B])(f: A => B): Par[B] =
+    Par.flatMap(Par.sequenceBalanced(as.map(Par.asyncF(f)))) { bs =>
+      foldMapV(bs, par(m))(b => Par.lazyUnit(b))
+    }
+
+  // Exercise 9: Use foldMap to detect whether a given IndexedSeq[Int] is ordered. You’ll need to come up with a creative Monoid
+  def ordered(ints: IndexedSeq[Int]): Boolean = {
+    val creativeMonoid = new Monoid[(Option[Int], Boolean)] {
+      def op(a1: (Option[Int], Boolean), a2: (Option[Int], Boolean)): (Option[Int], Boolean) =
+        (a1, a2) match {
+          case ((_, false), (i2, _)) => (i2, false)
+          case ((Some(i1), _), (Some(i2), _)) if i1 > i2 => (Some(i2), false)
+          case (_, (i2, _)) => (i2, true)
+        }
+      val zero: (Option[Int], Boolean) = (None, true)
+    }
+
+    foldMapV(ints, creativeMonoid)(i => (Some(i), true))._2
+  }
 
   sealed trait WC
   case class Stub(chars: String) extends WC
   case class Part(lStub: String, words: Int, rStub: String) extends WC
 
-  def wcMonoid: Monoid[WC] = sys.error("todo")
+  // Exercise 10: Write a monoid instance for WC and make sure that it meets the monoid laws.
+  def wcMonoid: Monoid[WC] = new Monoid[WC] {
+    def op(a1: WC, a2: WC): WC =
+      (a1, a2) match {
+        case (Stub(c1), Stub(c2)) => Stub(c1 + c2)
+        case (Stub(c), Part(l, w, r)) => Part(c + l, w, r)
+        case (Part(l, w, r), Stub(c)) => Part(l, w, r + c)
+        case (Part(l1, w1, r1), Part(l2, w2, r2)) => Part(l1, w1 + w2 + min(1, (r1 + l2).length),r2)
+      }
+    val zero: WC = Stub("")
+  }
 
-  def count(s: String): Int = sys.error("todo")
+  // Exercise 11: Use the WC monoid to implement a function that counts words in a String
+  // by recursively splitting it into substrings and counting the words in those substrings.
+  def count(s: String): Int = {
+    def countWord(w: String): Int = min(1, w.length)
+
+    foldMapV(s.toVector, wcMonoid)(c => if (c.isWhitespace) Part("", 0, "") else Stub(c.toString)) match {
+      case Stub(s) => countWord(s)
+      case Part(l, w, r) => w + countWord(l) + countWord(r)
+    }
+  }
 
   def productMonoid[A,B](A: Monoid[A], B: Monoid[B]): Monoid[(A, B)] =
     sys.error("todo")
