@@ -163,6 +163,9 @@ object Gen {
       case true => g.map(scala.Some.apply)
       case false => Gen.unit(scala.None)
     }
+
+  def tuple2[A, B](ga: Gen[A], gb: Gen[B]): Gen[(A, B)] =
+    ga.flatMap(a => gb.map(b => (a, b)))
 }
 
 case class SGen[+A](forSize: Int => Gen[A]) {
