@@ -35,12 +35,28 @@ trait Monad[M[_]] extends Functor[M] {
     flatMap(ma)(a => unit(f(a)))
   def map2[A,B,C](ma: M[A], mb: M[B])(f: (A, B) => C): M[C] =
     flatMap(ma)(a => map(mb)(b => f(a, b)))
+  def product[A,B](ma: M[A], mb: M[B]): M[(A, B)] =
+    map2(ma, mb)((_, _))
 
-  def sequence[A](lma: List[M[A]]): M[List[A]] = ???
 
-  def traverse[A,B](la: List[A])(f: A => M[B]): M[List[B]] = ???
+  // Exercise 3: The sequence and traverse combinators should be pretty familiar to you by now, and your implementations of them
+  // from various prior chapters are probably all very similar. Implement them once and for all on Monad[F].
+  def sequence[A](lma: List[M[A]]): M[List[A]] =
+    lma.foldRight(unit(List.empty[A]))((ma, mla) => map2(ma, mla)(_ :: _))
 
-  def replicateM[A](n: Int, ma: M[A]): M[List[A]] = ???
+  def traverse[A,B](la: List[A])(f: A => M[B]): M[List[B]] =
+    sequence(la map f)
+
+  // Exercise 4: Implement replicateM
+  // Exercise 5: Think about what it does
+  def replicateM[A](n: Int, ma: M[A]): M[List[A]] =
+    sequence(List.fill(n)(ma))
+
+  // Exercise 6: Implement this function, and then think about what it means for various data types.
+  def filterM[A](as: List[A])(f: A => M[Boolean]): M[List[A]] =
+    as.foldRight(unit(List.empty[A])) { (a, mla) =>
+      flatMap(f(a))(b => if(b) map(mla)(a :: _) else mla)
+    }
 
   def compose[A,B,C](f: A => M[B], g: B => M[C]): A => M[C] = ???
 
@@ -62,17 +78,41 @@ object Monad {
       ma flatMap f
   }
 
-  val parMonad: Monad[Par] = ???
+  // Exercise 1: Write monad instances for Par, Parser, Option, Stream, and List.
+  val parMonad: Monad[Par] = new Monad[Par] {
+    def unit[A](a: => A): Par[A] = Par.unit(a)
+    def flatMap[A, B](ma: Par[A])(f: (A) => Par[B]): Par[B] = Par.flatMap(ma)(f)
+  }
 
-  def parserMonad[P[+_]](p: Parsers[P]): Monad[P] = ???
+  def parserMonad[P[+_]](p: Parsers[P]): Monad[P] = new Monad[P] {
+    def unit[A](a: => A): P[A] = p.succeed(a)
+    def flatMap[A, B](ma: P[A])(f: (A) => P[B]): P[B] = p.flatMap(ma)(f)
+  }
 
-  val optionMonad: Monad[Option] = ???
+  val optionMonad: Monad[Option] = new Monad[Option] {
+    def unit[A](a: => A): Option[A] = Option.apply(a)
+    def flatMap[A, B](ma: Option[A])(f: (A) => Option[B]): Option[B] = ma flatMap f
+  }
 
-  val streamMonad: Monad[Stream] = ???
+  val streamMonad: Monad[Stream] = new Monad[Stream] {
+    def unit[A](a: => A): Stream[A] = Stream(a)
+    def flatMap[A, B](ma: Stream[A])(f: (A) => Stream[B]): Stream[B] = ma flatMap f
+  }
 
-  val listMonad: Monad[List] = ???
+  val listMonad: Monad[List] = new Monad[List] {
+    def unit[A](a: => A): List[A] = List(a)
+    def flatMap[A, B](ma: List[A])(f: (A) => List[B]): List[B] = ma flatMap f
+  }
 
-  def stateMonad[S] = ???
+  // Exercise 2: Try to implement a State monad, see what issues you run into, and think about possible solutions.
+  class StateInstances[S] {
+    type SState[A] = State[S, A]
+
+    def instance: Monad[SState] = new Monad[SState] {
+      def unit[A](a: => A): SState[A] = State.unit[S, A](a)
+      def flatMap[A, B](ma: SState[A])(f: (A) => SState[B]): SState[B] = ma flatMap f
+    }
+  }
 
   val idMonad: Monad[Id] = ???
 
