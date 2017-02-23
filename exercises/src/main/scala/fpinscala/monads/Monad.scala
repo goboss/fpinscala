@@ -58,18 +58,22 @@ trait Monad[M[_]] extends Functor[M] {
       flatMap(f(a))(b => if(b) map(mla)(a :: _) else mla)
     }
 
-  def compose[A,B,C](f: A => M[B], g: B => M[C]): A => M[C] = ???
+  // Exercise 7: Implement the Kleisli composition function compose.
+  def compose[A,B,C](f: A => M[B], g: B => M[C]): A => M[C] =
+    a => flatMap(f(a))(g)
 
-  // Implement in terms of `compose`:
-  def _flatMap[A,B](ma: M[A])(f: A => M[B]): M[B] = ???
+  // Exercise 8: Implement in terms of `compose`.
+  def _flatMap[A,B](ma: M[A])(f: A => M[B]): M[B] =
+    compose((_: Unit) => ma, f)(())
 
-  def join[A](mma: M[M[A]]): M[A] = ???
+  // Exercise 12: Implement join in terms of flatMap.
+  def join[A](mma: M[M[A]]): M[A] =
+    flatMap(mma)(identity)
 
-  // Implement in terms of `join`:
-  def __flatMap[A,B](ma: M[A])(f: A => M[B]): M[B] = ???
+  // Exercise 13: Implement in terms of `join`.
+  def __flatMap[A,B](ma: M[A])(f: A => M[B]): M[B] =
+    join(map(ma)(f))
 }
-
-case class Reader[R, A](run: R => A)
 
 object Monad {
   val genMonad = new Monad[Gen] {
@@ -114,20 +118,25 @@ object Monad {
     }
   }
 
-  val idMonad: Monad[Id] = ???
-
-  def readerMonad[R] = ???
-}
-
-case class Id[A](value: A) {
-  def map[B](f: A => B): Id[B] = ???
-  def flatMap[B](f: A => Id[B]): Id[B] = ???
-}
-
-object Reader {
-  def readerMonad[R] = new Monad[({type f[x] = Reader[R,x]})#f] {
-    def unit[A](a: => A): Reader[R,A] = ???
-    override def flatMap[A,B](st: Reader[R,A])(f: A => Reader[R,B]): Reader[R,B] = ???
+  val idMonad: Monad[Id] = new Monad[Id] {
+    def unit[A](a: => A): Id[A] = Id(a)
+    def flatMap[A, B](ma: Id[A])(f: (A) => Id[B]): Id[B] = ma.flatMap(f)
   }
 }
 
+// Exercise 17: Implement map and flatMap as methods on this class, and give an implementation for Monad[Id].
+case class Id[A](value: A) {
+  def map[B](f: A => B): Id[B] = Id(f(value))
+  def flatMap[B](f: A => Id[B]): Id[B] = f(value)
+}
+
+// Exercise 20: To cement your understanding of monads, give a monad instance for the following type, and explain what it means.
+case class Reader[R, A](run: R => A)
+object Reader {
+  def readerMonad[R] = new Monad[({type f[x] = Reader[R,x]})#f] {
+    def unit[A](a: => A): Reader[R,A] =
+      Reader(_ => a)
+    def flatMap[A,B](st: Reader[R,A])(f: A => Reader[R,B]): Reader[R,B] =
+      Reader(r => f(st.run(r)).run(r))
+  }
+}
