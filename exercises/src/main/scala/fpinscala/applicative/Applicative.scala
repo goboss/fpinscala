@@ -9,25 +9,39 @@ import language.higherKinds
 import language.implicitConversions
 
 trait Applicative[F[_]] extends Functor[F] {
-
-  def map2[A,B,C](fa: F[A], fb: F[B])(f: (A, B) => C): F[C] = ???
-
-  def apply[A,B](fab: F[A => B])(fa: F[A]): F[B] = ???
-
+  // Exercise 2: Define apply in terms of map2 and unit. Define map and map2 in terms of apply and unit
   def unit[A](a: => A): F[A]
+  def apply[A,B](fab: F[A => B])(fa: F[A]): F[B] =
+    map2(fab, fa)((ab, a) => ab(a))
 
   def map[A,B](fa: F[A])(f: A => B): F[B] =
-    apply(unit(f))(fa)
+    apply[A, B](unit(f))(fa)
 
-  def sequence[A](fas: List[F[A]]): F[List[A]] = ???
+  def map2[A,B,C](fa: F[A], fb: F[B])(f: (A, B) => C): F[C] =
+    apply[B, C](map(fa)(f.curried))(fb)
 
-  def traverse[A,B](as: List[A])(f: A => F[B]): F[List[B]] = ???
+  // Exercise 3: Implement map3 and map4 using only unit, apply, and the curried method available on functions.
+  def map3[A,B,C,D](fa: F[A], fb: F[B], fc: F[C])(f: (A, B, C) => D): F[D] =
+    apply[C, D](map2(fa, fb)(f.curried(_)(_)))(fc)
 
-  def replicateM[A](n: Int, fa: F[A]): F[List[A]] = ???
+  def map4[A,B,C,D,E](fa: F[A], fb: F[B], fc: F[C], fd: F[D])(f: (A, B, C, D) => E): F[E] =
+    apply[D, E](map3(fa, fb, fc)(f.curried(_)(_)(_)))(fd)
+
+  // Exercise 1: Transplant the implementations of as many combinators as you can from Monad to Applicative,
+  // using only map2 and unit, or methods implemented in terms of them.
+  def traverse[A,B](as: List[A])(f: A => F[B]): F[List[B]] =
+    as.foldRight(unit(List[B]()))((a, fbs) => map2(f(a), fbs)(_ :: _))
+
+  def sequence[A](fas: List[F[A]]): F[List[A]] =
+    fas.foldRight(unit(List.empty[A]))((fa, fla) => map2(fa, fla)(_ :: _))
+
+  def product[A,B](fa: F[A], fb: F[B]): F[(A, B)] =
+    map2(fa, fb)((_, _))
+
+  def replicateM[A](n: Int, fa: F[A]): F[List[A]] =
+    sequence(List.fill(n)(fa))
 
   def factor[A,B](fa: F[A], fb: F[B]): F[(A,B)] = ???
-
-  def product[G[_]](G: Applicative[G]): Applicative[({type f[x] = (F[x], G[x])})#f] = ???
 
   def compose[G[_]](G: Applicative[G]): Applicative[({type f[x] = F[G[x]]})#f] = ???
 
@@ -37,19 +51,35 @@ trait Applicative[F[_]] extends Functor[F] {
 case class Tree[+A](head: A, tail: List[Tree[A]])
 
 trait Monad[F[_]] extends Applicative[F] {
-  def flatMap[A,B](ma: F[A])(f: A => F[B]): F[B] = join(map(ma)(f))
+  def flatMap[A,B](ma: F[A])(f: A => F[B]): F[B] =
+    join(map(ma)(f))
 
-  def join[A](mma: F[F[A]]): F[A] = flatMap(mma)(ma => ma)
+  def join[A](mma: F[F[A]]): F[A] =
+    flatMap(mma)(ma => ma)
 
   def compose[A,B,C](f: A => F[B], g: B => F[C]): A => F[C] =
     a => flatMap(f(a))(g)
+
+  override def map[A,B](m: F[A])(f: A => B): F[B] =
+    flatMap(m)(a => unit(f(a)))
+
+  override def map2[A,B,C](ma: F[A], mb: F[B])(f: (A, B) => C): F[C] =
+    flatMap(ma)(a => map(mb)(b => f(a, b)))
 
   override def apply[A,B](mf: F[A => B])(ma: F[A]): F[B] =
     flatMap(mf)(f => map(ma)(a => f(a)))
 }
 
 object Monad {
-  def eitherMonad[E]: Monad[({type f[x] = Either[E, x]})#f] = ???
+  // Exercise 5: Write a monad instance for Either.
+  def eitherMonad[E]: Monad[({type f[x] = Either[E, x]})#f] = new Monad[({type f[x] = Either[E, x]})#f] {
+    override def unit[A](a: => A): Either[E, A] = Right(a)
+    override def flatMap[A, B](ma: Either[E, A])(f: (A) => Either[E, B]): Either[E, B] =
+      ma match {
+        case Right(a) => f(a)
+        case Left(e) => Left(e)
+      }
+  }
 
   def stateMonad[S] = new Monad[({type f[x] = State[S, x]})#f] {
     def unit[A](a: => A): State[S, A] = State(s => (a, s))
@@ -81,7 +111,22 @@ object Applicative {
       a zip b map f.tupled
   }
 
-  def validationApplicative[E]: Applicative[({type f[x] = Validation[E,x]})#f] = ???
+  // Exercise 6: Write an Applicative instance for Validation that accumulates errors in Failure.
+  def validationApplicative[E]: Applicative[({type f[x] = Validation[E,x]})#f] = new Applicative[({type f[x] = Validation[E, x]})#f] {
+    override def unit[A](a: => A): Validation[E, A] =
+      Success(a)
+    override def map2[A, B, C](fa: Validation[E, A], fb: Validation[E, B])(f: (A, B) => C): Validation[E, C] =
+      (fa, fb) match {
+        case (Success(a), Success(b)) =>
+          Success(f(a, b))
+        case (Failure(h1, t1), Failure(h2, t2)) =>
+          Failure(h1, t1 ++ (h2 +: t2))
+        case (f @ Failure(_, _), _) =>
+          f
+        case (_, f @ Failure(_, _)) =>
+          f
+      }
+  }
 
   type Const[A, B] = A
 
