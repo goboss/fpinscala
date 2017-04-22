@@ -8,7 +8,7 @@ import monoids._
 import language.higherKinds
 import language.implicitConversions
 
-trait Applicative[F[_]] extends Functor[F] {
+trait Applicative[F[_]] extends Functor[F] { self =>
   // Exercise 2: Define apply in terms of map2 and unit. Define map and map2 in terms of apply and unit
   def unit[A](a: => A): F[A]
   def apply[A,B](fab: F[A => B])(fa: F[A]): F[B] =
@@ -38,19 +38,40 @@ trait Applicative[F[_]] extends Functor[F] {
   def product[A,B](fa: F[A], fb: F[B]): F[(A, B)] =
     map2(fa, fb)((_, _))
 
+  // Exercise 8: Just like we can take the product of two monoids A and B to give the monoid (A, B),
+  // we can take the product of two applicative functors. Implement this function.
+  def product[G[_]](G: Applicative[G]): Applicative[({type f[x] = (F[x], G[x])})#f] =
+    new Applicative[({type f[x] = (F[x], G[x])})#f] {
+      override def unit[A](a: => A): (F[A], G[A]) =
+        (self.unit(a), G.unit(a))
+      override def apply[A, B](fab: (F[A => B], G[A => B]))(fa: (F[A], G[A])): (F[B], G[B]) =
+        (self.apply(fab._1)(fa._1), G.apply(fab._2)(fa._2))
+    }
+
   def replicateM[A](n: Int, fa: F[A]): F[List[A]] =
     sequence(List.fill(n)(fa))
 
   def factor[A,B](fa: F[A], fb: F[B]): F[(A,B)] = ???
 
-  def compose[G[_]](G: Applicative[G]): Applicative[({type f[x] = F[G[x]]})#f] = ???
+  // Exercise 9: If F[_] and G[_] are applicative functors, then so is F[G[_]]. Implement this function
+  def compose[G[_]](G: Applicative[G]): Applicative[({type f[x] = F[G[x]]})#f] =
+    new Applicative[({type f[x] = F[G[x]]})#f] {
+      override def unit[A](a: => A): F[G[A]] =
+        self.unit(G.unit(a))
+      override def map2[A, B, C](fa: F[G[A]], fb: F[G[B]])(f: (A, B) => C): F[G[C]] =
+        self.map2(fa, fb)(G.map2(_, _)(f))
+    }
 
-  def sequenceMap[K,V](ofa: Map[K,F[V]]): F[Map[K,V]] = ???
+  // Exercise 12: On the Applicative trait, implement sequence over a Map rather than a List.
+  def sequenceMap[K,V](ofa: Map[K,F[V]]): F[Map[K,V]] =
+    ofa.foldRight(unit(Map.empty[K, V])) {
+      case ((k, fv), fm) => map2(fv, fm)((v, m) => m + (k -> v))
+    }
 }
 
 case class Tree[+A](head: A, tail: List[Tree[A]])
 
-trait Monad[F[_]] extends Applicative[F] {
+trait Monad[F[_]] extends Applicative[F] { self =>
   def flatMap[A,B](ma: F[A])(f: A => F[B]): F[B] =
     join(map(ma)(f))
 
@@ -59,6 +80,14 @@ trait Monad[F[_]] extends Applicative[F] {
 
   def compose[A,B,C](f: A => F[B], g: B => F[C]): A => F[C] =
     a => flatMap(f(a))(g)
+
+  // Exercise 11: Try to write compose on Monad. It’s not possible, but it is instructive to attempt it and understand why this is the case.
+  def compose[G[_]](G: Monad[G]): Monad[({type f[x] = F[G[x]]})#f] =
+    new Monad[({type f[x] = F[G[x]]})#f] {
+      override def unit[A](a: => A): F[G[A]] = self.unit(G.unit(a))
+      override def flatMap[A, B](ma: F[G[A]])(f: (A) => F[G[B]]): F[G[B]] =
+        ??? // self.flatMap(ma)(ga => G.flatMap(ga)(f))
+    }
 
   override def map[A,B](m: F[A])(f: A => B): F[B] =
     flatMap(m)(a => unit(f(a)))
@@ -185,9 +214,22 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
 }
 
 object Traverse {
-  val listTraverse = ???
+  // Exercise 13: Write Traverse instances for List, Option, and Tree
+  val listTraverse: Traverse[List] = new Traverse[List] {
+    override def traverse[G[_], A, B](fa: List[A])(f: (A) => G[B])(implicit G: Applicative[G]): G[List[B]] =
+      fa.foldRight(G.unit(List.empty[B]))((a, glb) => G.map2(f(a), glb)(_ :: _))
+  }
 
-  val optionTraverse = ???
+  val optionTraverse = new Traverse[Option] {
+    override def traverse[G[_], A, B](fa: Option[A])(f: (A) => G[B])(implicit G: Applicative[G]): G[Option[B]] =
+      fa match {
+        case Some(a) => G.map(f(a))(Some.apply)
+        case None => G.unit(None)
+      }
+  }
 
-  val treeTraverse = ???
+  val treeTraverse = new Traverse[Tree] {
+    override def traverse[G[_], A, B](fa: Tree[A])(f: (A) => G[B])(implicit G: Applicative[G]): G[Tree[B]] =
+      G.map2(f(fa.head), listTraverse.traverse(fa.tail)(a => traverse(a)(f)))(Tree(_, _))
+  }
 }

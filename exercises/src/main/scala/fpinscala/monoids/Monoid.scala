@@ -202,7 +202,7 @@ trait Foldable[F[_]] {
   def concatenate[A](as: F[A])(m: Monoid[A]): A =
     foldLeft(as)(m.zero)(m.op)
 
-  // Exercise 15: Any Foldable structure can be turned into a List . Write this conversion in a generic way.
+  // Exercise 15: Any Foldable structure can be turned into a List. Write this conversion in a generic way.
   def toList[A](as: F[A]): List[A] =
     foldRight(as)(List.empty[A])(_ :: _)
 }
