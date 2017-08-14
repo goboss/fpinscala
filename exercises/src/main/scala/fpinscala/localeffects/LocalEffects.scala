@@ -98,7 +98,12 @@ sealed abstract class STArray[S,A](implicit manifest: Manifest[A]) {
   // Turn the array into an immutable list
   def freeze: ST[S,List[A]] = ST(value.toList)
 
-  def fill(xs: Map[Int,A]): ST[S,Unit] = ???
+  // Exercise 1: Add a combinator on STArray to fill the array from a Map where each key in the map represents an index into the array,
+  // and the value under that key is written to the array at that index.
+  def fill(xs: Map[Int,A]): ST[S,Unit] =
+    xs.foldRight(ST[S, Unit](())) { case ((i, a), st) =>
+      st.flatMap(_ => write(i, a))
+    }
 
   def swap(i: Int, j: Int): ST[S,Unit] = for {
     x <- read(i)
@@ -124,9 +129,36 @@ object STArray {
 object Immutable {
   def noop[S] = ST[S,Unit](())
 
-  def partition[S](a: STArray[S,Int], l: Int, r: Int, pivot: Int): ST[S,Int] = ???
+  // Exercise 2: Write the purely functional versions of partition and qs
+  def partition[S](a: STArray[S,Int], l: Int, r: Int, pivot: Int): ST[S,Int] =
+    for {
+      pivotVal <- a.read(pivot)
+      _ <- a.swap(pivot, r)
+      j <- STRef(l)
+      _ <- (l until r).foldLeft(noop[S]) { (st, i) =>
+        for {
+          _ <- st
+          iVal <- a.read(i)
+          _ <- if (iVal < pivotVal) swapAndAdvance(a, i, j) else noop
+        } yield ()
+      }
+      jVal <- j.read
+      _ <- a.swap(jVal, r)
+    } yield jVal
 
-  def qs[S](a: STArray[S,Int], l: Int, r: Int): ST[S, Unit] = ???
+  def qs[S](a: STArray[S,Int], l: Int, r: Int): ST[S, Unit] =
+    for {
+      i <- partition(a, l, r, l + (r - l) / 2)
+      _ <- qs(a, l, i - 1)
+      _ <- qs(a, i + 1, r)
+    } yield ()
+
+  private def swapAndAdvance[S](a: STArray[S, Int], i: Int, j: STRef[S, Int]): ST[S, Unit] =
+    for {
+      jVal <- j.read
+      _ <- a.swap(i, jVal)
+      _ <- j.write(jVal + 1)
+    } yield ()
 
   def quicksort(xs: List[Int]): List[Int] =
     if (xs.isEmpty) xs else ST.runST(new RunnableST[List[Int]] {
@@ -141,3 +173,19 @@ object Immutable {
 
 import scala.collection.mutable.HashMap
 
+// Exercise 3: Come up with a minimal set of primitive combinators for creating and manipulating hash maps.
+sealed trait STHashMap[S, K, V] {
+  protected def value: HashMap[K, V]
+
+  def size: ST[S, Int] = ST(value.size)
+
+  def get(key: K): ST[S, Option[V]] = ST(value.get(key))
+
+  def append(entry: (K,V)): ST[S, Unit] = ST(value += entry)
+  def +=(entry: (K,V)): ST[S, Unit] = append(entry)
+
+  def remove(key: K): ST[S, Unit] = ST(value -= key)
+  def -=(key: K): ST[S, Unit] = remove(key)
+
+  def isDefinedAt(key: K): ST[S, Boolean] = ST(value.isDefinedAt(key))
+}
