@@ -136,7 +136,14 @@ object SimpleStreamTransducers {
     /*
      * Exercise 5: Implement `|>`. Let the types guide your implementation.
      */
-    def |>[O2](p2: Process[O,O2]): Process[I,O2] = ???
+    def |>[O2](p2: Process[O,O2]): Process[I,O2] =
+      (this, p2) match {
+        case (Halt(), _) => Halt()
+        case (_, Halt()) => Halt()
+        case (_, Emit(h, t)) => Emit(h, this |> t)
+        case (Emit(h, t), Await(f)) => t |> f(Some(h))
+        case (Await(f), _) => Await(i => f(i) |> p2)
+      }
 
     /*
      * Feed `in` to this `Process`. Uses a tail recursive loop as long
@@ -292,13 +299,31 @@ object SimpleStreamTransducers {
     /*
      * Exercise 1: Implement `take`, `drop`, `takeWhile`, and `dropWhile`.
      */
-    def take[I](n: Int): Process[I,I] = ???
+    def take[I](n: Int): Process[I,I] =
+      if (n > 0) Await {
+        case Some(i) => Emit(i, take(n-1))
+        case _ => Halt()
+      }
+      else Halt()
 
-    def drop[I](n: Int): Process[I,I] = ???
+    def drop[I](n: Int): Process[I,I] =
+      if(n > 0) Await {
+        case Some(i) => drop(n - 1)
+        case _ => Halt()
+      }
+      else id
 
-    def takeWhile[I](f: I => Boolean): Process[I,I] = ???
+    def takeWhile[I](f: I => Boolean): Process[I,I] =
+      Await {
+        case Some(i) if f(i) => Emit(i, takeWhile(f))
+        case _ => Halt()
+      }
 
-    def dropWhile[I](f: I => Boolean): Process[I,I] = ???
+    def dropWhile[I](f: I => Boolean): Process[I,I] =
+      Await {
+        case Some(i) if f(i) => dropWhile(f)
+        case _ => id
+      }
 
     /* The identity `Process`, just repeatedly echos its input. */
     def id[I]: Process[I,I] = lift(identity)
@@ -306,7 +331,11 @@ object SimpleStreamTransducers {
     /*
      * Exercise 2: Implement `count`.
      */
-    def count[I]: Process[I,Int] = ???
+    def count[I]: Process[I,Int] = {
+      def go(n: Int): Process[I,Int] =
+        await((i: I) => emit(n+1, go(n+1)))
+      go(0)
+    }
 
     /* For comparison, here is an explicit recursive implementation. */
     def count2[I]: Process[I,Int] = {
@@ -318,7 +347,15 @@ object SimpleStreamTransducers {
     /*
      * Exercise 3: Implement `mean`.
      */
-    def mean: Process[Double,Double] = ???
+    def mean: Process[Double,Double] = {
+      def go(n: Double, acc: Double): Process[Double,Double] =
+        Await {
+          case Some(d) => Emit((acc + d) / (n + 1), go(n + 1, acc + d))
+          case None => Halt()
+        }
+
+      go(0.0, 0.0)
+    }
 
     def loop[S,I,O](z: S)(f: (I,S) => (O,S)): Process[I,O] =
       await((i: I) => f(i,z) match {
@@ -327,9 +364,11 @@ object SimpleStreamTransducers {
 
     /* Exercise 4: Implement `sum` and `count` in terms of `loop` */
 
-    def sum2: Process[Double,Double] = ???
+    def sum2: Process[Double,Double] =
+      loop(0.0)((d, s) => (d + s, d + s))
 
-    def count3[I]: Process[I,Int] = ???
+    def count3[I]: Process[I,Int] =
+      loop(1)((_, cnt) => (cnt, cnt + 1))
 
     /*
      * Exercise 7: Can you think of a generic combinator that would
