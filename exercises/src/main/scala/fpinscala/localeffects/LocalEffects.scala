@@ -139,7 +139,7 @@ object Immutable {
         for {
           _ <- st
           iVal <- a.read(i)
-          _ <- if (iVal < pivotVal) swapAndAdvance(a, i, j) else noop
+          _ <- if (iVal < pivotVal) swapAndAdvance(a, i, j) else noop[S]
         } yield ()
       }
       jVal <- j.read

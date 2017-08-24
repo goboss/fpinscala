@@ -1,6 +1,9 @@
 package fpinscala.streamingio
 
-import fpinscala.iomonad.{IO,Monad,Free,unsafePerformIO}
+import fpinscala.iomonad
+import fpinscala.iomonad.{Free, IO, Monad, unsafePerformIO}
+import fpinscala.parallelism.Nonblocking.Par
+
 import language.implicitConversions
 import language.higherKinds
 import language.postfixOps
@@ -207,7 +210,9 @@ object SimpleStreamTransducers {
     /*
      * Exercise 6: Implement `zipWithIndex`.
      */
-    def zipWithIndex: Process[I,(O,Int)] = ???
+    def zipWithIndex: Process[I,(O,Int)] = Process.zipWithIndex(this)
+
+    def zip[O2](that: Process[I, O2]): Process[I, (O, O2)] = Process.zip(this, that)
 
     /* Add `p` to the fallback branch of this process */
     def orElse(p: Process[I,O]): Process[I,O] = this match {
@@ -308,7 +313,7 @@ object SimpleStreamTransducers {
 
     def drop[I](n: Int): Process[I,I] =
       if(n > 0) Await {
-        case Some(i) => drop(n - 1)
+        case Some(_) => drop(n - 1)
         case _ => Halt()
       }
       else id
@@ -331,16 +336,9 @@ object SimpleStreamTransducers {
     /*
      * Exercise 2: Implement `count`.
      */
-    def count[I]: Process[I,Int] = {
-      def go(n: Int): Process[I,Int] =
-        await((i: I) => emit(n+1, go(n+1)))
-      go(0)
-    }
-
-    /* For comparison, here is an explicit recursive implementation. */
-    def count2[I]: Process[I,Int] = {
-      def go(n: Int): Process[I,Int] =
-        await((i: I) => emit(n+1, go(n+1)))
+    def count[I]: Process[I, Int] = {
+      def go(n: Int): Process[I, Int] =
+        await((_: I) => emit(n + 1, go(n + 1)))
       go(0)
     }
 
@@ -370,11 +368,40 @@ object SimpleStreamTransducers {
     def count3[I]: Process[I,Int] =
       loop(1)((_, cnt) => (cnt, cnt + 1))
 
+
+    /*
+     * Exercise 6: Implement `zipWithIndex`.
+     *
+     * See definition on `Process` above.
+     */
+    def zipWithIndex[I, O](p: Process[I, O]): Process[I,(O,Int)] = {
+      def go(idx: Int, p: Process[I, O]): Process[I, (O, Int)] = p match {
+        case Halt() => Halt()
+        case Await(recv) => Await(option => recv(option).map(o => (o, idx)))
+        case Emit(h, t) => Emit((h, idx), go(idx + 1, t))
+      }
+
+      go(0, p)
+    }
+
     /*
      * Exercise 7: Can you think of a generic combinator that would
      * allow for the definition of `mean` in terms of `sum` and
      * `count`?
      */
+    def zip[I, O1, O2](p1: Process[I, O1], p2: Process[I, O2]): Process[I, (O1, O2)] =
+      (p1, p2) match {
+        case (Halt(), _) => Halt()
+        case (_, Halt()) => Halt()
+        case (Emit(b, t1), Emit(c, t2)) => Emit((b,c), zip(t1, t2))
+        case (Await(recv), _) =>
+          Await(oi => zip(recv(oi), feed(oi)(p2)))
+        case (_, Await(recv)) =>
+          Await(oi => zip(feed(oi)(p1), recv(oi)))
+      }
+
+    def meanWithZip: Process[Double, Double] =
+      zip(sum, count[Double]).map { case (sn, n) => if (n != 0) sn / n else 0 }
 
     def feed[A,B](oa: Option[A])(p: Process[A,B]): Process[A,B] =
       p match {
@@ -384,18 +411,12 @@ object SimpleStreamTransducers {
       }
 
     /*
-     * Exercise 6: Implement `zipWithIndex`.
-     *
-     * See definition on `Process` above.
-     */
-
-    /*
      * Exercise 8: Implement `exists`
      *
      * We choose to emit all intermediate values, and not halt.
      * See `existsResult` below for a trimmed version.
      */
-    def exists[I](f: I => Boolean): Process[I,Boolean] = ???
+    def exists[I](f: I => Boolean): Process[I, Boolean] = lift(f)
 
     /* Awaits then emits a single value, then halts. */
     def echo[I]: Process[I,I] = await(i => emit(i))
@@ -428,6 +449,20 @@ object SimpleStreamTransducers {
      * Exercise 9: Write a program that reads degrees fahrenheit as `Double` values from a file,
      * converts each temperature to celsius, and writes results to another file.
      */
+    def convertToCelsius(in: java.io.File, out: java.io.File): iomonad.Free[Par, Unit] = {
+      def process: Process[String, String] =
+        filter((l: String) => !l.startsWith("#")) |> filter(_.trim.nonEmpty) |> lift(l => toCelsius(l.toDouble).toString)
+
+      processFile(in, process, List.empty[String])(_ :+ _).map { lines =>
+        val writer = new java.io.PrintWriter(out)
+        try {
+          lines.foreach(writer.write)
+        }
+        finally {
+          writer.close()
+        }
+      }
+    }
 
     def toCelsius(fahrenheit: Double): Double =
       (5.0 / 9.0) * (fahrenheit - 32.0)
@@ -542,7 +577,16 @@ object GeneralizedStreamTransducers {
      * below, this is not tail recursive and responsibility for stack safety
      * is placed on the `Monad` instance.
      */
-    def runLog(implicit F: MonadCatch[F]): F[IndexedSeq[O]] = ???
+    def runLog(implicit F: MonadCatch[F]): F[IndexedSeq[O]] = {
+      def go(cur: Process[F, O], acc: IndexedSeq[O]): F[IndexedSeq[O]] =
+        cur match {
+          case Halt(End) => F.unit(acc)
+          case Halt(err) => F.fail(err)
+          case Emit(h, t) => go(t, acc :+ h)
+          case Await(req, recv) => F.flatMap (F.attempt(req)) { e => go(Try(recv(e)), acc) }
+        }
+      go(this, IndexedSeq.empty[O])
+    }
 
     /*
      * We define `Process1` as a type alias - see the companion object
@@ -763,30 +807,33 @@ object GeneralizedStreamTransducers {
                        release: R => IO[Unit]): Process[IO,O] =
       resource(acquire)(use)(release andThen (eval_[IO,Unit,O]))
 
-    /*
-     * Create a `Process[IO,O]` from the lines of a file, using
-     * the `resource` combinator above to ensure the file is closed
-     * when processing the stream of lines is finished.
-     */
-    def lines(filename: String): Process[IO,String] =
-      resource
-        { IO(io.Source.fromFile(filename)) }
-        { src =>
-            lazy val iter = src.getLines // a stateful iterator
-            def step = if (iter.hasNext) Some(iter.next) else None
-            lazy val lines: Process[IO,String] = eval(IO(step)).flatMap {
-              case None => Halt(End)
-              case Some(line) => Emit(line, lines)
-            }
-            lines
-        }
-        { src => eval_ { IO(src.close) } }
-
     /* Exercise 11: Implement `eval`, `eval_`, and use these to implement `lines`. */
-    def eval[F[_],A](a: F[A]): Process[F,A] = ???
+    def eval[F[_],A](fa: F[A]): Process[F,A] =
+      await[F, A, A](fa) {
+        case Right(a) => Emit(a, Halt(End))
+        case Left(e) => Halt(e)
+      }
 
     /* Evaluate the action purely for its effects. */
-    def eval_[F[_],A,B](a: F[A]): Process[F,B] = ???
+    def eval_[F[_],A,B](fa: F[A]): Process[F,B] =
+      await[F, A, B](fa) {
+        case Right(_) => Halt(End)
+        case Left(e) => Halt(e)
+      }
+
+    def lines(filename: String): Process[IO,String] =
+      resource
+      { IO(io.Source.fromFile(filename)) }
+      { src =>
+        lazy val iter = src.getLines // a stateful iterator
+      def step = if (iter.hasNext) Some(iter.next) else None
+        lazy val lines: Process[IO,String] = eval(IO(step)).flatMap {
+          case None => Halt(End)
+          case Some(line) => Emit(line, lines)
+        }
+        lines
+      }
+      { src => eval_ { IO(src.close) } }
 
     /* Helper function with better type inference. */
     def evalIO[A](a: IO[A]): Process[IO,A] =
