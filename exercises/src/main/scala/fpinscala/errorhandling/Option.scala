@@ -66,11 +66,11 @@ object Option {
 
   // Exercise 4: write a function that combines a list of Options into an Option of list
   def sequence[A](a: List[Option[A]]): Option[List[A]] =
-    a.foldLeft(Some(List.empty[A]): Option[List[A]])((acc, o) => acc.flatMap(a => o.map(v => v +: a)))
+    a.foldRight(Some(List.empty[A]): Option[List[A]])((o, acc) => acc.flatMap(a => o.map(v => v +: a)))
 
   // Exercise 5: Write a function traverse and implement sequence using it
   def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] =
-    a.foldLeft(Some(List.empty[B]): Option[List[B]])((acc, a) =>
+    a.foldRight(Some(List.empty[B]): Option[List[B]])((a, acc) =>
       for {
         t <- acc
         b <- f(a)

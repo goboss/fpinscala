@@ -56,7 +56,7 @@ class TreeSpec extends FlatSpec with Matchers {
 
   // Exercise 29
 
-  it should "fold a Leaft into a value" in {
+  it should "fold a Leaf into a value" in {
     Tree.fold(Leaf(2))(_ / 2)((_, _) => fail()) shouldBe 1
   }
 
