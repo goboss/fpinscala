@@ -30,7 +30,7 @@ object Either {
     traverse(es)(identity)
 
   def traverse[E, A, B](as: List[A])(f: A => Either[E, B]): Either[E, List[B]] =
-    as.foldLeft(Right(List.empty): Either[E, List[B]])((acc, a) =>
+    as.foldRight(Right(List.empty): Either[E, List[B]])((a, acc) =>
       for {
         t <- acc
         b <- f(a)
