@@ -6,7 +6,8 @@ object FPInScalaBuild extends Build {
     scalaVersion := "2.11.7",
     resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/",
     projectDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.0.1" % Test
+      "org.scalatest" %% "scalatest" % "3.0.1" % Test,
+      "org.scalacheck" %% "scalacheck" % "1.13.4" % Test
     )
   )
 
