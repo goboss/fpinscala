@@ -85,7 +85,7 @@ trait Stream[+A] {
   def append[B >: A](s: => Stream[B]): Stream[B] =
     foldRight(s)((a, t) => Stream.cons(a, t))
 
-  // Exercise 14: Implement statsWith using function you've written
+  // Exercise 14: Implement startsWith using function you've written
   def startsWith[B](prefix: Stream[B]): Boolean =
     Stream.zipAll(this, prefix).takeWhile(_._2.nonEmpty).forAll {
       case (h1, h2) => h1 == h2
