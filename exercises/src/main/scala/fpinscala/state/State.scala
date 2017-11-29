@@ -84,7 +84,7 @@ object RNG {
     r0 => {
       val (a, r1) = ra(r0)
       val (b, r2) = rb(r1)
-      (f(a, b), r1)
+      (f(a, b), r2)
     }
 
   // Exercise 7: Implement sequence for combining a List of transitions into a single
@@ -104,7 +104,7 @@ object RNG {
   def ints2(count: Int): Rand[List[Int]] =
     sequence(List.fill(count)(nonNegativeInt))
 
-  // Exercise 8: Implement flatMap , and then use it to implement nonNegativeLessThan.
+  // Exercise 8: Implement flatMap, and then use it to implement nonNegativeLessThan.
   def flatMap[A,B](f: Rand[A])(g: A => Rand[B]): Rand[B] =
     rng => {
       val (a, r1) = f(rng)
