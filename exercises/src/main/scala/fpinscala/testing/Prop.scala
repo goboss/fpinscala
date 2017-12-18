@@ -24,7 +24,7 @@ trait SimpleProp { self =>
 }
 
 case class Prop(run: (MaxSize, TestCases, RNG) => Result) {
-  // Exercise 9: Implement && and || for composing Pro values.
+  // Exercise 9: Implement && and || for composing Prop values.
   def &&(p: Prop): Prop =
     Prop { (max, n, rng) =>
       run(max, n, rng) match {
