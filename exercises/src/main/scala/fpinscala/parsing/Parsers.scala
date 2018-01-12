@@ -71,7 +71,7 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
     @tailrec
     def go(k: Int, acc: Parser[List[A]]): Parser[List[A]] = {
       if (k > 0) go(k - 1, map2(p, acc)(_ :: _))
-      else map(acc)(_.reverse)
+      else acc
     }
 
     go(n, succeed(List.empty))
@@ -89,8 +89,11 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   def digit: Parser[String] =
     "\\d".r
 
-  def space: Parser[String] =
+  def maybeSpace: Parser[String] =
     "\\s*".r
+
+  def space:  Parser[String] =
+    "\\s+".r
 
   def double: Parser[Double] =
     regex("""-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?""".r).map(_.toDouble)
@@ -112,7 +115,7 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
     } yield a
 
   def trimSpace[A](p: Parser[A]): Parser[A] =
-    trim(space, p, space)
+    trim(maybeSpace, p, maybeSpace)
 
   def manySep[S, A](s: Parser[S], p: Parser[A]): Parser[List[A]] =
     map2(p, many(trimLeft(s, p)))(_ :: _)
