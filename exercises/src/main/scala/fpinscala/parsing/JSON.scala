@@ -39,6 +39,6 @@ object JSON {
     def jliteral: Parser[JSON] = jnull | jbool | jnumber | jstring
     def jvalue: Parser[JSON] = describe(jliteral, "literal") | describe(jarray, "array") | describe(jobject, "object")
 
-    describe(trimSpace(jvalue), "parse JSON")
+    describe(whole(trimSpace(jvalue)), "JSON")
   }
 }

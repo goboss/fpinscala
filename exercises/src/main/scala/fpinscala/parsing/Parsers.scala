@@ -107,6 +107,9 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   def trimRight[A, R](p: Parser[A], right: Parser[R]): Parser[A] =
     map2(p, slice(many(right)))((a, _) => a)
 
+  def skipRight[A, R](p: Parser[A], right:  => Parser[R]): Parser[A] =
+    map2(p, slice(right))((a, _) => a)
+
   def trim[L, A, R](left: Parser[L], p: Parser[A], right: Parser[R]): Parser[A] =
     for {
       _ <- slice(left)
@@ -123,6 +126,12 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   // Exercise 6: Using flatMap and any other combinators, write the context-sensitive parser we couldn’t express earlier.
   def numberOfAs: Parser[List[Char]] =
     digit.flatMap(s => listOfN(s.toInt, char('a')))
+
+  def endOfInput: Parser[String] =
+    describe(regex("\\z".r), "unexpected trailing characters")
+
+  def whole[A](p: Parser[A]): Parser[A] =
+    skipRight(p, endOfInput)
 
   case class ParserOps[A](p: Parser[A]) {
     def |[B>:A](p2: => Parser[B]): Parser[B] = or(p2)
