@@ -121,9 +121,12 @@ object Monoid {
     val creativeMonoid = new Monoid[(Option[Int], Boolean)] {
       def op(a1: (Option[Int], Boolean), a2: (Option[Int], Boolean)): (Option[Int], Boolean) =
         (a1, a2) match {
-          case ((_, false), (i2, _)) => (i2, false)
-          case ((Some(i1), _), (Some(i2), _)) if i1 > i2 => (Some(i2), false)
-          case (_, (i2, _)) => (i2, true)
+          case ((_, false), (i2, _)) =>
+            (i2, false)
+          case ((Some(i1), _), (Some(i2), _)) if i1 > i2 =>
+            (Some(i2), false)
+          case ((i1, _), _) =>
+            (i1, true)
         }
       val zero: (Option[Int], Boolean) = (None, true)
     }
