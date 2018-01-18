@@ -94,4 +94,10 @@ class ParsersSpec extends FlatSpec with Matchers {
     MyParsers.run(map(digit)(_.toInt))("4") shouldBe Success(4, Location("4", 1))
   }
 
+  // Exercise 10
+
+  it should "describe a parser and use the description when reporting failure" in {
+    MyParsers.run(describe(MyParsers.fail(ParseError(List(Location("123", 3) -> "duh"))), "expected failure"))("123") shouldBe
+      Failure(ParseError(List(Location("123", 0) -> "expected failure", Location("123",3 ) -> "duh")))
+  }
 }
