@@ -83,7 +83,7 @@ class MonoidSpec extends FlatSpec with Matchers {
   // Execise 8
 
   it should "map and combine a list in parallel" in {
-    Par.run(Executors.newWorkStealingPool(10))(parFoldMap(Vector("1", "2", "3"), intAddition)(_.toInt)) shouldBe 6
+    Par.run(Executors.newCachedThreadPool)(parFoldMap(Vector("1", "2", "3"), intAddition)(_.toInt)) shouldBe 6
   }
 
   // Exercise 9

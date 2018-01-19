@@ -118,7 +118,7 @@ class GenSpec extends FlatSpec with Matchers with PropertyChecks {
   // Exercise 16
 
   it should "generate Par[Int]" in {
-    val executor = Executors.newWorkStealingPool(10)
+    val executor = Executors.newCachedThreadPool()
     forAll { seed: Long =>
       Gen.parInt.sample.run(SimpleRNG(seed))._1(executor).get() shouldBe an[Integer]
     }
