@@ -165,8 +165,8 @@ class MonoidSpec extends FlatSpec with Matchers {
   "A Foldable" should "turn itself into a list" in {
     ListFoldable.toList(List(1, 2, 3)) shouldBe List(1, 2, 3)
     TreeFoldable.toList(Branch(Leaf(1), Branch(Leaf(2), Leaf(3)))) shouldBe List(1, 2, 3)
-    OptionFoldable.toList(Some(1)).toList shouldBe List(1)
-    OptionFoldable.toList(None).toList shouldBe List()
+    OptionFoldable.toList(Some(1)) shouldBe List(1)
+    OptionFoldable.toList(None) shouldBe List()
   }
 
   // Exercise 16
