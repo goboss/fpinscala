@@ -378,7 +378,7 @@ object IO3 {
   }
 
   // Exercise 2: Implement a specialized `Function0` interpreter.
-//   @annotation.tailrec
+  @annotation.tailrec
   def runTrampoline[A](fa: Free[Function0,A]): A = fa match {
      case Return(a) => a
      case Suspend(s) => s()
@@ -398,7 +398,7 @@ object IO3 {
   }
 
   // return either a `Suspend`, a `Return`, or a right-associated `FlatMap`
-  // @annotation.tailrec
+  @annotation.tailrec
   def step[F[_],A](fa: Free[F,A]): Free[F,A] = fa match {
     case FlatMap(FlatMap(x, f), g) => step(x.flatMap(xx => f(xx) flatMap g))
     case FlatMap(Return(x), f) => step(f(x))
@@ -609,6 +609,7 @@ object IO3 {
           callback(Left(exc))
         override def completed(result: Integer, attachment: Unit): Unit = {
           val a = new Array[Byte](result)
+          buffer.rewind()
           buffer.get(a, 0, result)
           callback(Right(a))
         }
