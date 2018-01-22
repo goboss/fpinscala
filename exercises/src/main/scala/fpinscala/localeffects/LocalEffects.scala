@@ -2,6 +2,8 @@ package fpinscala.localeffects
 
 import fpinscala.monads._
 
+import scala.collection.mutable
+
 object Mutable {
   def quicksort(xs: List[Int]): List[Int] = if (xs.isEmpty) xs else {
     val arr = xs.toArray
@@ -147,11 +149,14 @@ object Immutable {
     } yield jVal
 
   def qs[S](a: STArray[S,Int], l: Int, r: Int): ST[S, Unit] =
-    for {
-      i <- partition(a, l, r, l + (r - l) / 2)
-      _ <- qs(a, l, i - 1)
-      _ <- qs(a, i + 1, r)
-    } yield ()
+    if (l < r)
+      for {
+        i <- partition(a, l, r, l + (r - l) / 2)
+        _ <- qs(a, l, i - 1)
+        _ <- qs(a, i + 1, r)
+      } yield ()
+    else
+      noop[S]
 
   private def swapAndAdvance[S](a: STArray[S, Int], i: Int, j: STRef[S, Int]): ST[S, Unit] =
     for {
@@ -175,7 +180,7 @@ import scala.collection.mutable.HashMap
 
 // Exercise 3: Come up with a minimal set of primitive combinators for creating and manipulating hash maps.
 sealed trait STHashMap[S, K, V] {
-  protected def value: HashMap[K, V]
+  protected val value: mutable.HashMap[K, V]
 
   def size: ST[S, Int] = ST(value.size)
 
@@ -187,5 +192,15 @@ sealed trait STHashMap[S, K, V] {
   def remove(key: K): ST[S, Unit] = ST(value -= key)
   def -=(key: K): ST[S, Unit] = remove(key)
 
+  def freeze: ST[S, List[(K, V)]] = ST(value.toList)
+
   def isDefinedAt(key: K): ST[S, Boolean] = ST(value.isDefinedAt(key))
+}
+
+object STHashMap {
+  def fromList[S, K, V](seed: List[(K, V)]): ST[S, STHashMap[S, K, V]] = ST {
+    new STHashMap[S, K, V] {
+      override protected val value: mutable.HashMap[K, V] = mutable.HashMap(seed: _*)
+    }
+  }
 }
