@@ -6,4 +6,5 @@ jdk:
   - oraclejdk7
   - openjdk7
 notifications:
-  email: false
+  email:
+    - mwyrwalski@gmail.com
