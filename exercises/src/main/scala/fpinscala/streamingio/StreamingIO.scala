@@ -326,8 +326,9 @@ object SimpleStreamTransducers {
 
     def dropWhile[I](f: I => Boolean): Process[I,I] =
       Await {
-        case Some(i) if f(i) => dropWhile(f)
-        case _ => id
+        case Some(i) =>
+          if (f(i)) dropWhile(f) else Emit(i, id)
+        case _ => Halt()
       }
 
     /* The identity `Process`, just repeatedly echos its input. */
@@ -365,7 +366,7 @@ object SimpleStreamTransducers {
     def sum2: Process[Double,Double] =
       loop(0.0)((d, s) => (d + s, d + s))
 
-    def count3[I]: Process[I,Int] =
+    def count2[I]: Process[I,Int] =
       loop(1)((_, cnt) => (cnt, cnt + 1))
 
 
@@ -374,15 +375,8 @@ object SimpleStreamTransducers {
      *
      * See definition on `Process` above.
      */
-    def zipWithIndex[I, O](p: Process[I, O]): Process[I,(O,Int)] = {
-      def go(idx: Int, p: Process[I, O]): Process[I, (O, Int)] = p match {
-        case Halt() => Halt()
-        case Await(recv) => Await(option => recv(option).map(o => (o, idx)))
-        case Emit(h, t) => Emit((h, idx), go(idx + 1, t))
-      }
-
-      go(0, p)
-    }
+    def zipWithIndex[I, O](p: Process[I, O]): Process[I,(O,Int)] =
+      zip(p, count.map(_ - 1))
 
     /*
      * Exercise 7: Can you think of a generic combinator that would
