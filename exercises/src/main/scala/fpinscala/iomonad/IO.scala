@@ -390,7 +390,7 @@ object IO3 {
    }
 
   // Exercise 3: Implement a `Free` interpreter which works for any `Monad`
-  def run[F[_],A](fa: Free[F,A])(implicit F: Monad[F]): F[A] = fa match {
+  def run[F[_],A](fa: Free[F,A])(implicit F: Monad[F]): F[A] = step(fa) match {
     case Return(a) => F.unit(a)
     case Suspend(s) => s
     case FlatMap(Suspend(s), f) => F.flatMap(s)(a => run(f(a)))
