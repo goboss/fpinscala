@@ -41,7 +41,8 @@ class TreeSpec extends FlatSpec with Matchers {
   }
 
   it should "calculate the depth of a tree with branches" in {
-    val prettyUnbalanced = Branch(Leaf(1), Branch(Leaf(2), Branch(Leaf(3), Leaf(4))))
+    val prettyUnbalanced =
+      Branch(Leaf(1), Branch(Leaf(2), Branch(Leaf(3), Leaf(4))))
     Tree.depth(prettyUnbalanced) shouldBe 3
     Tree.depth2(prettyUnbalanced) shouldBe 3
   }
@@ -50,8 +51,12 @@ class TreeSpec extends FlatSpec with Matchers {
 
   it should "map elements of a tree" in {
     val powerTree = Branch(Leaf("I"), Branch(Leaf("haz"), Leaf("a cat")))
-    Tree.map(powerTree)(_.length) shouldBe Branch(Leaf(1), Branch(Leaf(3), Leaf(5)))
-    Tree.map2(powerTree)(_.length) shouldBe Branch(Leaf(1), Branch(Leaf(3), Leaf(5)))
+    Tree.map(powerTree)(_.length) shouldBe Branch(
+      Leaf(1),
+      Branch(Leaf(3), Leaf(5)))
+    Tree.map2(powerTree)(_.length) shouldBe Branch(
+      Leaf(1),
+      Branch(Leaf(3), Leaf(5)))
   }
 
   // Exercise 29

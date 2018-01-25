@@ -26,12 +26,15 @@ class IOSpec extends FlatSpec with Matchers {
   it should "run a Monad" in {
     val m = new Monad[List] {
       override def unit[A](a: => A): List[A] = List(a)
-      override def flatMap[A, B](a: List[A])(f: A => List[B]): List[B] = a.flatMap(f)
+      override def flatMap[A, B](a: List[A])(f: A => List[B]): List[B] =
+        a.flatMap(f)
     }
 
     IO3.run[List, Int](IO3.Return(42))(m) shouldBe List(42)
     IO3.run[List, Int](IO3.Suspend(List(1, 2, 3)))(m) shouldBe List(1, 2, 3)
-    IO3.run[List, Int](IO3.FlatMap(IO3.Suspend(List(1, 2, 3)), (i: Int) => Return(i + 1)))(m) shouldBe List(2, 3, 4)
+    IO3.run[List, Int](IO3.FlatMap(
+      IO3.Suspend(List(1, 2, 3)),
+      (i: Int) => Return(i + 1)))(m) shouldBe List(2, 3, 4)
   }
 
   // Exercise 5
@@ -40,10 +43,16 @@ class IOSpec extends FlatSpec with Matchers {
     val path = Paths.get(getClass.getClassLoader.getResource("data.txt").toURI)
     val ch = AsynchronousFileChannel.open(path, StandardOpenOption.READ)
 
-    Par.run(Executors.newCachedThreadPool())(IO3.read(ch, 0, 255)).fold(
-      err => fail(err),
-      res => res should contain theSameElementsAs Array('a'.toInt, 'b'.toInt, 'c'.toInt)
-    )
+    Par
+      .run(Executors.newCachedThreadPool())(IO3.read(ch, 0, 255))
+      .fold(
+        err => fail(err),
+        res =>
+          res should contain theSameElementsAs Array(
+            'a'.toInt,
+            'b'.toInt,
+            'c'.toInt)
+      )
   }
 
 }

@@ -41,7 +41,8 @@ class MonoidSpec extends FlatSpec with Matchers {
   }
 
   "the intMultiplication monoid" should "observe the monoid laws" in {
-    monoidLaws(intMultiplication, Gen.int).run.tupled(propParams) shouldBe Passed
+    monoidLaws(intMultiplication, Gen.int).run
+      .tupled(propParams) shouldBe Passed
   }
 
   "the booleanOr monoid" should "observe the monoid laws" in {
@@ -55,7 +56,8 @@ class MonoidSpec extends FlatSpec with Matchers {
   // Exercise 2
 
   "the optionMonoid" should "observe the monoid laws" in {
-    monoidLaws(optionMonoid[Int], Gen.option(Gen.int)).run.tupled(propParams) shouldBe Passed
+    monoidLaws(optionMonoid[Int], Gen.option(Gen.int)).run
+      .tupled(propParams) shouldBe Passed
   }
 
   // Exercise 5
@@ -83,7 +85,8 @@ class MonoidSpec extends FlatSpec with Matchers {
   // Execise 8
 
   it should "map and combine a list in parallel" in {
-    Par.run(Executors.newCachedThreadPool)(parFoldMap(Vector("1", "2", "3"), intAddition)(_.toInt)) shouldBe 6
+    Par.run(Executors.newCachedThreadPool)(
+      parFoldMap(Vector("1", "2", "3"), intAddition)(_.toInt)) shouldBe 6
   }
 
   // Exercise 9
@@ -140,7 +143,8 @@ class MonoidSpec extends FlatSpec with Matchers {
   }
 
   it should "foldMap" in {
-    TreeFoldable.foldMap(Branch(Leaf(1), Branch(Leaf(2), Leaf(3))))(_.toString)(stringMonoid) shouldBe "123"
+    TreeFoldable.foldMap(Branch(Leaf(1), Branch(Leaf(2), Leaf(3))))(_.toString)(
+      stringMonoid) shouldBe "123"
   }
 
   // Exercise 14
@@ -164,7 +168,10 @@ class MonoidSpec extends FlatSpec with Matchers {
 
   "A Foldable" should "turn itself into a list" in {
     ListFoldable.toList(List(1, 2, 3)) shouldBe List(1, 2, 3)
-    TreeFoldable.toList(Branch(Leaf(1), Branch(Leaf(2), Leaf(3)))) shouldBe List(1, 2, 3)
+    TreeFoldable.toList(Branch(Leaf(1), Branch(Leaf(2), Leaf(3)))) shouldBe List(
+      1,
+      2,
+      3)
     OptionFoldable.toList(Some(1)) shouldBe List(1)
     OptionFoldable.toList(None) shouldBe List()
   }
@@ -172,7 +179,9 @@ class MonoidSpec extends FlatSpec with Matchers {
   // Exercise 16
 
   "the productMonoid" should "observe the monoid laws" in {
-    monoidLaws(productMonoid(intMultiplication, stringMonoid), Gen.tuple2(Gen.int, Gen.alpha)).run.tupled(propParams) shouldBe Passed
+    monoidLaws(
+      productMonoid(intMultiplication, stringMonoid),
+      Gen.tuple2(Gen.int, Gen.alpha)).run.tupled(propParams) shouldBe Passed
   }
 
   // Exercise 18

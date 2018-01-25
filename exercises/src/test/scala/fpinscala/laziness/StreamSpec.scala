@@ -1,7 +1,7 @@
 package fpinscala.laziness
 
 import org.scalatest.{FlatSpec, Matchers}
-import fpinscala.errorhandling.{Some, None}
+import fpinscala.errorhandling.{None, Some}
 
 class StreamSpec extends FlatSpec with Matchers {
 
@@ -112,11 +112,14 @@ class StreamSpec extends FlatSpec with Matchers {
   // Exercise 11
 
   it should "unfold a seed into a finite Stream" in {
-    Stream.unfold(0)(i => if (i < 10) Some((-i, i + 1)) else None).toList shouldBe List(0, -1, -2, -3, -4, -5, -6, -7, -8, -9)
+    Stream
+      .unfold(0)(i => if (i < 10) Some((-i, i + 1)) else None)
+      .toList shouldBe List(0, -1, -2, -3, -4, -5, -6, -7, -8, -9)
   }
 
   it should "unfold a seed into an infinite Stream" in {
-    Stream.unfold(0)(i => Some(i, i+1)).take(10).toList shouldBe List(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+    Stream.unfold(0)(i => Some(i, i + 1)).take(10).toList shouldBe List(0, 1, 2,
+      3, 4, 5, 6, 7, 8, 9)
   }
 
   // Exercise 12
@@ -132,7 +135,10 @@ class StreamSpec extends FlatSpec with Matchers {
   }
 
   it should "map a non empty Stream using unfold" in {
-    Stream.map(Stream("zero", "one", "two"))(_.length).toList shouldBe List(4, 3, 3)
+    Stream.map(Stream("zero", "one", "two"))(_.length).toList shouldBe List(
+      4,
+      3,
+      3)
   }
 
   it should "take the first few elements of an empty Stream using unfold" in {
@@ -156,11 +162,16 @@ class StreamSpec extends FlatSpec with Matchers {
   }
 
   it should "zip two Streams with the provided function until both are non empty" in {
-    Stream.zipWith(Stream("one", "two"), Stream(1, 2, 3))(_ * _).toList shouldBe List("one", "twotwo")
+    Stream
+      .zipWith(Stream("one", "two"), Stream(1, 2, 3))(_ * _)
+      .toList shouldBe List("one", "twotwo")
   }
 
   it should "zip two Streams while at least one of them contains elements" in {
-    Stream.zipAll(Stream("one", "two"), Stream(1, 2, 3)).toList shouldBe List((Some("one"), Some(1)), (Some("two"), Some(2)), (None, Some(3)))
+    Stream.zipAll(Stream("one", "two"), Stream(1, 2, 3)).toList shouldBe List(
+      (Some("one"), Some(1)),
+      (Some("two"), Some(2)),
+      (None, Some(3)))
   }
 
   // Exercise 14
@@ -173,7 +184,8 @@ class StreamSpec extends FlatSpec with Matchers {
   // Exercise 15
 
   it should "calculate all the tails of a stream using unfold" in {
-    Stream(1, 2, 3).tails.toList.map(_.toList) shouldBe List(List(1, 2, 3), List(2, 3), List(3), List())
+    Stream(1, 2, 3).tails.toList
+      .map(_.toList) shouldBe List(List(1, 2, 3), List(2, 3), List(3), List())
   }
 
   // Exercise 16

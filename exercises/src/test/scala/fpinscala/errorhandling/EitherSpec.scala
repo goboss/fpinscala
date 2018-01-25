@@ -40,7 +40,8 @@ class EitherSpec extends FlatSpec with Matchers {
   // Exercise 7
 
   it should "sequence an empty list" in {
-    Either.sequence(List.empty[Either[String, Int]]) shouldBe Right(List.empty[Int])
+    Either.sequence(List.empty[Either[String, Int]]) shouldBe Right(
+      List.empty[Int])
   }
 
   it should "sequence a list of Eithers, one of which is Left" in {
@@ -48,19 +49,23 @@ class EitherSpec extends FlatSpec with Matchers {
   }
 
   it should "sequence a list of Rights" in {
-    Either.sequence(List(Right(1), Right(2), Right(3))) shouldBe Right(List(1, 2, 3))
+    Either.sequence(List(Right(1), Right(2), Right(3))) shouldBe Right(
+      List(1, 2, 3))
   }
 
   it should "traverse an empty list" in {
-    Either.traverse(List.empty[Int])(i => Right(i)) shouldBe Right(List.empty[Int])
+    Either.traverse(List.empty[Int])(i => Right(i)) shouldBe Right(
+      List.empty[Int])
   }
 
   it should "traverse a list of values with a function that returns Left for some of them" in {
-    Either.traverse(List(1, 2, 3))(i => if (i % 2 == 0) Left("nope") else Right("yes")) shouldBe Left("nope")
+    Either.traverse(List(1, 2, 3))(i =>
+      if (i % 2 == 0) Left("nope") else Right("yes")) shouldBe Left("nope")
   }
 
   it should "traverse a list of values with a function that always returns a Right" in {
-    Either.traverse(List("one", "two", "three"))(str => Right(str.length)) shouldBe Right(List(3, 3, 5))
+    Either.traverse(List("one", "two", "three"))(str => Right(str.length)) shouldBe Right(
+      List(3, 3, 5))
   }
 
 }

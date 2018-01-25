@@ -1,11 +1,12 @@
 package fpinscala.parsing
 
-import org.scalatest.{Matchers, FlatSpec}
+import org.scalatest.{FlatSpec, Matchers}
 
 class JSONSpec extends FlatSpec with Matchers {
   import JSON._
 
-  def runJson(input: String): ParseResult[JSON] = MyParsers.run(JSON.jsonParser(MyParsers))(input)
+  def runJson(input: String): ParseResult[JSON] =
+    MyParsers.run(JSON.jsonParser(MyParsers))(input)
 
   // Exercise 9
 
@@ -14,7 +15,9 @@ class JSONSpec extends FlatSpec with Matchers {
   }
 
   it should "parse a number" in {
-    runJson("-123.45") shouldBe Success(JNumber(-123.45), Location("-123.45", 7))
+    runJson("-123.45") shouldBe Success(
+      JNumber(-123.45),
+      Location("-123.45", 7))
   }
 
   it should "fail to parse a char as number" in {
@@ -44,7 +47,9 @@ class JSONSpec extends FlatSpec with Matchers {
 
   it should "parse an array" in {
     val json = "[1, \"abc\", true, null]"
-    runJson(json) shouldBe Success(JArray(Vector(JNumber(1), JString("abc"), JBool(true), JNull)), Location(json, 22))
+    runJson(json) shouldBe Success(
+      JArray(Vector(JNumber(1), JString("abc"), JBool(true), JNull)),
+      Location(json, 22))
   }
 
   it should "fail to parse an array with no closing brace" in {
@@ -84,15 +89,17 @@ class JSONSpec extends FlatSpec with Matchers {
       """
 
     runJson(json) shouldBe Success(
-      JObject(Map(
-        "num" -> JNumber(1.23),
-        "str" -> JString("test"),
-        "arr" -> JArray(Vector(JNumber(1), JBool(true))),
-        "obj" -> JObject(Map(
-          "x" -> JNull,
-          "other" -> JObject(Map("name" -> JString("it yourself")))
-        ))
-      )),
+      JObject(
+        Map(
+          "num" -> JNumber(1.23),
+          "str" -> JString("test"),
+          "arr" -> JArray(Vector(JNumber(1), JBool(true))),
+          "obj" -> JObject(
+            Map(
+              "x" -> JNull,
+              "other" -> JObject(Map("name" -> JString("it yourself")))
+            ))
+        )),
       Location(json, 241)
     )
   }

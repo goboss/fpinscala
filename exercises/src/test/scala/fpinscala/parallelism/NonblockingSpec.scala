@@ -8,12 +8,14 @@ class NonblockingSpec extends FlatSpec with Matchers {
   import Nonblocking.Par._
 
   private val executor = Executors.newFixedThreadPool(2)
-  private def testParResult[A, B](p: Nonblocking.Par[A])(test: A => B) = test(Nonblocking.Par.run(executor)(p))
+  private def testParResult[A, B](p: Nonblocking.Par[A])(test: A => B) =
+    test(Nonblocking.Par.run(executor)(p))
 
   // Exercise 11
 
   "Nonblocking Par" should "choose between N parallel computations based on the result of Par[Int]" in {
-    testParResult(choiceN(unit(1))(List(unit("zero"), unit("one"))))(_ shouldBe "one")
+    testParResult(choiceN(unit(1))(List(unit("zero"), unit("one"))))(
+      _ shouldBe "one")
   }
 
   it should "choose between 2 parallel computations based on the result of Par[Boolean]" in {
@@ -23,7 +25,9 @@ class NonblockingSpec extends FlatSpec with Matchers {
   // Exercise 12
 
   it should "choose a parallel computation based on a key calculated by another Par" in {
-    testParResult(choiceMap(unit("y"))(Map("x" -> unit("x"), "y" -> unit("y"))))(_ shouldBe "y")
+    testParResult(
+      choiceMap(unit("y"))(Map("x" -> unit("x"), "y" -> unit("y"))))(
+      _ shouldBe "y")
   }
 
   // Exercise 13
@@ -33,7 +37,8 @@ class NonblockingSpec extends FlatSpec with Matchers {
   }
 
   it should "choose between N parallel computations based on the result of Par[Int] using chooser" in {
-    testParResult(choiceNChooser(unit(1))(List(unit("zero"), unit("one"))))(_ shouldBe "one")
+    testParResult(choiceNChooser(unit(1))(List(unit("zero"), unit("one"))))(
+      _ shouldBe "one")
   }
 
   it should "choose between 2 parallel computations based on the result of Par[Boolean] using chooser" in {

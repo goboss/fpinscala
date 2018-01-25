@@ -33,7 +33,6 @@ case class Prop(run: (MaxSize, TestCases, RNG) => Result) {
       }
     }
 
-
   def ||(p: Prop): Prop =
     Prop { (max, n, rng) =>
       run(max, n, rng) match {
@@ -55,14 +54,19 @@ object Prop {
   case object Passed extends Result {
     def isFalsified = false
   }
-  case class Falsified(failure: FailedCase, successes: SuccessCount) extends Result {
+  case class Falsified(failure: FailedCase, successes: SuccessCount)
+      extends Result {
     def isFalsified = true
   }
   case object Proved extends Result {
     def isFalsified = false
   }
 
-  def run(p: Prop, maxSize: Int = 100, testCases: Int = 100, rng: RNG = RNG.SimpleRNG(System.currentTimeMillis)): Unit =
+  def run(
+    p: Prop,
+    maxSize: Int = 100,
+    testCases: Int = 100,
+    rng: RNG = RNG.SimpleRNG(System.currentTimeMillis)): Unit =
     p.run(maxSize, testCases, rng) match {
       case Falsified(msg, n) =>
         println(s"! Falsified after $n passed tests:\n $msg")
@@ -71,7 +75,6 @@ object Prop {
       case Proved =>
         println(s"+ OK, proved property.")
     }
-
 
   /* Produce an infinite random stream from a `Gen` and a starting `RNG`. */
   def randomStream[A](g: Gen[A], rng: RNG): Stream[A] =
@@ -95,7 +98,7 @@ object Prop {
       }
 
       loop(0, as.domain.getOrElse(randomStream(as, rng)))
-  }
+    }
 
   def forAll[A](g: SGen[A])(f: A => Boolean): Prop =
     forAll(g.forSize)(f)
@@ -106,10 +109,14 @@ object Prop {
       val props: Stream[Prop] =
         Stream.from(0).take((n min max) + 1).map(i => forAll(g(i))(f))
       val prop: Prop =
-        props.map(p => Prop { (max, _, rng) =>
-          p.run(max, casesPerSize, rng)
-        }).toList.reduce(_ && _)
-      prop.run(max,n,rng)
+        props
+          .map(p =>
+            Prop { (max, _, rng) =>
+              p.run(max, casesPerSize, rng)
+          })
+          .toList
+          .reduce(_ && _)
+      prop.run(max, n, rng)
   }
 
   val S: Gen[ExecutorService] = weighted(
@@ -121,7 +128,7 @@ object Prop {
     forAll(S ** g) { case s ** a => f(a)(s).get() }
 
   def equal[A](p: Par[A], p2: Par[A]): Par[Boolean] =
-    Par.map2(p,p2)(_ == _)
+    Par.map2(p, p2)(_ == _)
 
   def check(p: => Boolean): Prop = Prop { (_, _, _) =>
     if (p) Proved else Falsified("()", 0)
@@ -135,7 +142,7 @@ object Prop {
   // This will be expanded to `v.toString` by the Scala compiler.
   def buildMsg[A](s: A, e: Throwable): String =
     s"test case: $s\n" +
-    s"generated an exception: ${e.getMessage}\n" +
-    s"stack trace:\n ${e.getStackTrace.mkString("\n")}"
+      s"generated an exception: ${e.getMessage}\n" +
+      s"stack trace:\n ${e.getStackTrace.mkString("\n")}"
 
 }

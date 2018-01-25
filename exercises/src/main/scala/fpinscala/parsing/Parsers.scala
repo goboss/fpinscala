@@ -7,7 +7,7 @@ import scala.annotation.tailrec
 import scala.language.{higherKinds, implicitConversions}
 import scala.util.matching.Regex
 
-trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trait
+trait Parsers[Parser[+ _]] { self => // so inner classes may call methods of trait
   // Run the parser p returning ParseResult.
   def run[A](p: Parser[A])(input: String): ParseResult[A]
 
@@ -20,7 +20,7 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   def or[A](p1: Parser[A], p2: => Parser[A]): Parser[A]
 
   // Run parser p and if it succeeds apply the function f to the result creating a new parser.
-  def flatMap[A,B](p: Parser[A])(f: A => Parser[B]): Parser[B]
+  def flatMap[A, B](p: Parser[A])(f: A => Parser[B]): Parser[B]
 
   // If parser p fails convert it to other parser
   def recoverWith[A, B >: A](p: Parser[A])(f: Failure => Parser[B]): Parser[B]
@@ -38,7 +38,8 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   implicit def operators[A](p: Parser[A]): ParserOps[A] = ParserOps[A](p)
 
   // Convert a to string parser
-  implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]): ParserOps[String] = ParserOps(f(a))
+  implicit def asStringParser[A](a: A)(
+    implicit f: A => Parser[String]): ParserOps[String] = ParserOps(f(a))
 
   // Exercise 10: Spend some time discovering a nice set of combinators for expressing what errors get reported by a Parser
   def describe[A](p: Parser[A], description: String): Parser[A]
@@ -48,15 +49,16 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
     string(c.toString) map (_.charAt(0))
 
   // Exercise 8: map is no longer primitive. Express it in terms of flatMap and/or other combinators.
-  def map[A,B](p: Parser[A])(f: A => B): Parser[B] =
+  def map[A, B](p: Parser[A])(f: A => B): Parser[B] =
     flatMap(p)(a => succeed(f(a)))
 
   // Exercise 1: Using product, implement the now-familiar combinator map2 and then use this to implement many1 in terms of many.
-  def map2[A, B, C](p1: Parser[A], p2: => Parser[B])(f: (A, B) => C): Parser[C] =
+  def map2[A, B, C](p1: Parser[A], p2: => Parser[B])(
+    f: (A, B) => C): Parser[C] =
     flatMap(p1)(a => map(p2)(b => f(a, b)))
 
   // Exercise 7: Implement product and map2 in terms of flatMap.
-  def product[A,B](p1: Parser[A], p2: => Parser[B]): Parser[(A,B)] =
+  def product[A, B](p1: Parser[A], p2: => Parser[B]): Parser[(A, B)] =
     flatMap(p1)(a => map(p2)(b => (a, b)))
 
   // Exercise 3: Before continuing, see if you can define many in terms of or, map2, and succeed.
@@ -80,7 +82,8 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   // Exercise 5: We could also deal with non-strictness with a separate combinator like we did in chapter 7.
   // Try this here and make the necessary changes to your existing combinators.
   // What do you think of that approach in this instance?
-  def map2Strict[A, B, C](p1: Parser[A], p2: Parser[B])(f: (A, B) => C): Parser[C] =
+  def map2Strict[A, B, C](p1: Parser[A], p2: Parser[B])(
+    f: (A, B) => C): Parser[C] =
     flatMap(p1)(a => map(p2)(b => f(a, b)))
   def lazyP[A](parser: => Parser[A]): Parser[A]
   def manyStrict[A](p: Parser[A]): Parser[List[A]] =
@@ -92,7 +95,7 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   def maybeSpace: Parser[String] =
     "\\s*".r
 
-  def space:  Parser[String] =
+  def space: Parser[String] =
     "\\s+".r
 
   def double: Parser[Double] =
@@ -107,10 +110,13 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   def trimRight[A, R](p: Parser[A], right: Parser[R]): Parser[A] =
     map2(p, slice(many(right)))((a, _) => a)
 
-  def skipRight[A, R](p: Parser[A], right:  => Parser[R]): Parser[A] =
+  def skipRight[A, R](p: Parser[A], right: => Parser[R]): Parser[A] =
     map2(p, slice(right))((a, _) => a)
 
-  def trim[L, A, R](left: Parser[L], p: Parser[A], right: Parser[R]): Parser[A] =
+  def trim[L, A, R](
+    left: Parser[L],
+    p: Parser[A],
+    right: Parser[R]): Parser[A] =
     for {
       _ <- slice(left)
       a <- p
@@ -134,8 +140,8 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
     skipRight(p, endOfInput)
 
   case class ParserOps[A](p: Parser[A]) {
-    def |[B>:A](p2: => Parser[B]): Parser[B] = or(p2)
-    def or[B>:A](p2: => Parser[B]): Parser[B] = self.or(p,p2)
+    def |[B >: A](p2: => Parser[B]): Parser[B] = or(p2)
+    def or[B >: A](p2: => Parser[B]): Parser[B] = self.or(p, p2)
 
     def ~>[B](p2: => Parser[B]): Parser[B] = self.trimLeft(p, p2)
     def <~[B](p2: => Parser[B]): Parser[A] = self.trimRight(p, p2)
@@ -147,7 +153,8 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
       self.recoverWith[A, B](p)(f)
 
     def map[B](f: A => B): Parser[B] = self.map(p)(f)
-    def map2[B, C](p2: Parser[B])(f: (A, B) => C): Parser[C] = self.map2(p, p2)(f)
+    def map2[B, C](p2: Parser[B])(f: (A, B) => C): Parser[C] =
+      self.map2(p, p2)(f)
 
     def many: Parser[List[A]] = self.many(p)
     def * : Parser[List[A]] = many
@@ -157,10 +164,11 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
 
     def slice: Parser[String] = self.slice(p)
 
-    def **[B](p2: => Parser[B]): Parser[(A,B)] = product(p2)
-    def product[B](p2: => Parser[B]): Parser[(A,B)] = self.product(p,p2)
+    def **[B](p2: => Parser[B]): Parser[(A, B)] = product(p2)
+    def product[B](p2: => Parser[B]): Parser[(A, B)] = self.product(p, p2)
 
-    def describedAs(description: String): Parser[A] = self.describe(p, description)
+    def describedAs(description: String): Parser[A] =
+      self.describe(p, description)
 
     def important: Parser[A] = self.important(p)
   }

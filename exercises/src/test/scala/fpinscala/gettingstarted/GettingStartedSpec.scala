@@ -44,7 +44,9 @@ class GettingStartedSpec extends FlatSpec with Matchers {
   // Exercise 5
 
   it should "compose two functions with aligned types" in {
-    PolymorphicFunctions.compose((d: Double) => d.toString, (i: Int) => i.toDouble)(12) shouldBe "12.0"
+    PolymorphicFunctions.compose(
+      (d: Double) => d.toString,
+      (i: Int) => i.toDouble)(12) shouldBe "12.0"
   }
 
 }

@@ -12,7 +12,7 @@ object JSON {
   case class JArray(get: IndexedSeq[JSON]) extends JSON
   case class JObject(get: Map[String, JSON]) extends JSON
 
-  def jsonParser[Parser[+_]](P: Parsers[Parser]): Parser[JSON] = {
+  def jsonParser[Parser[+ _]](P: Parsers[Parser]): Parser[JSON] = {
     import P._
 
     val comma = trimSpace(",")
@@ -27,7 +27,8 @@ object JSON {
     def jbool: Parser[JBool] =
       literal("true")(JBool(true)) | literal("false")(JBool(false))
     def jarray: Parser[JArray] =
-      trim(trimSpace("["), manySep(comma, jvalue), trimSpace("]")).map(l => JArray(l.toIndexedSeq))
+      trim(trimSpace("["), manySep(comma, jvalue), trimSpace("]")).map(l =>
+        JArray(l.toIndexedSeq))
     def jmapping: Parser[(String, JSON)] =
       jstring.map(_.get) ** (trimSpace(":") ~> jvalue)
     def jobject: Parser[JObject] =
@@ -37,7 +38,10 @@ object JSON {
         "}"
       ).map(ms => JObject(ms.toMap))
     def jliteral: Parser[JSON] = jnull | jbool | jnumber | jstring
-    def jvalue: Parser[JSON] = describe(jliteral, "literal") | describe(jarray, "array") | describe(jobject, "object")
+    def jvalue: Parser[JSON] =
+      describe(jliteral, "literal") | describe(jarray, "array") | describe(
+        jobject,
+        "object")
 
     describe(whole(trimSpace(jvalue)), "JSON")
   }

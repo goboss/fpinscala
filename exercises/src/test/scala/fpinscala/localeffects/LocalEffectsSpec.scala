@@ -42,21 +42,23 @@ class LocalEffectsSpec extends FlatSpec with Matchers {
   // Exercise 3
 
   "STHashMap" should "be fun to work with" in {
-    val (d1, d2, s, lst) = ST.runST(new RunnableST[(Boolean, Boolean, Int, List[(String, Int)])] {
-      override def apply[S]: ST[S, (Boolean, Boolean, Int, List[(String, Int)])] =
-        for {
-          hm <- STHashMap.fromList(List("x" -> 0))
-          _ <- hm += ("x", 1)
-          _ <- hm += ("x", 2)
-          _ <- hm += ("y", 3)
-          _ <- hm += ("z", 4)
-          d1 <- hm.isDefinedAt("z")
-          _ <- hm -= "z"
-          d2 <- hm.isDefinedAt("z")
-          s <- hm.size
-          r <- hm.freeze
-        } yield (d1, d2, s, r)
-    })
+    val (d1, d2, s, lst) =
+      ST.runST(new RunnableST[(Boolean, Boolean, Int, List[(String, Int)])] {
+        override def apply[S]
+          : ST[S, (Boolean, Boolean, Int, List[(String, Int)])] =
+          for {
+            hm <- STHashMap.fromList(List("x" -> 0))
+            _ <- hm += ("x", 1)
+            _ <- hm += ("x", 2)
+            _ <- hm += ("y", 3)
+            _ <- hm += ("z", 4)
+            d1 <- hm.isDefinedAt("z")
+            _ <- hm -= "z"
+            d2 <- hm.isDefinedAt("z")
+            s <- hm.size
+            r <- hm.freeze
+          } yield (d1, d2, s, r)
+      })
 
     d1 shouldBe true
     d2 shouldBe false

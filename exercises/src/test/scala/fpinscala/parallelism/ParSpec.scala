@@ -7,7 +7,8 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class ParSpec extends FlatSpec with Matchers with JavaFutures {
   private val executor = Executors.newFixedThreadPool(2)
-  private def testParResult[A, B](p: Par.Par[A])(test: A => B) = whenReady(Par.run(executor)(p))(test)
+  private def testParResult[A, B](p: Par.Par[A])(test: A => B) =
+    whenReady(Par.run(executor)(p))(test)
 
   // Exercise 3
 
@@ -24,12 +25,14 @@ class ParSpec extends FlatSpec with Matchers with JavaFutures {
   // Exercise 5
 
   it should "turn a list of Par values into Par of list" in {
-    testParResult(Par.sequence(List(Par.unit(1), Par.unit(2))))(_ shouldBe List(1, 2))
+    testParResult(Par.sequence(List(Par.unit(1), Par.unit(2))))(
+      _ shouldBe List(1, 2))
   }
 
   // Exercise 6
 
   it should "filter elements of a list in parallel" in {
-    testParResult(Par.parFilter(List(1, 2, 3, 4))(_ % 2 == 0))(_ shouldBe List(2, 4))
+    testParResult(Par.parFilter(List(1, 2, 3, 4))(_ % 2 == 0))(
+      _ shouldBe List(2, 4))
   }
 }

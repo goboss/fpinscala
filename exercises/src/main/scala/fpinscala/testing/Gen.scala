@@ -21,7 +21,7 @@ case class Gen[+A](sample: State[RNG, A], domain: Option[Stream[A]]) {
   def map[B](f: A => B): Gen[B] =
     Gen(sample.map(f), unboundedDomain)
 
-  def map2[B,C](g: Gen[B])(f: (A,B) => C): Gen[C] =
+  def map2[B, C](g: Gen[B])(f: (A, B) => C): Gen[C] =
     Gen(sample.map2(g.sample)(f), unboundedDomain)
 
   def listOfN(size: Gen[Int]): Gen[List[A]] =
@@ -37,8 +37,8 @@ case class Gen[+A](sample: State[RNG, A], domain: Option[Stream[A]]) {
   def unsized: SGen[A] =
     SGen(_ => this)
 
-  def **[B](g: Gen[B]): Gen[(A,B)] =
-    (this map2 g)((_,_))
+  def **[B](g: Gen[B]): Gen[(A, B)] =
+    (this map2 g)((_, _))
 }
 
 object Gen {
@@ -47,7 +47,7 @@ object Gen {
   private var DefaultSampleSize = 100
 
   object ** {
-    def unapply[A,B](p: (A,B)) = Some(p)
+    def unapply[A, B](p: (A, B)) = Some(p)
   }
 
   def unboundedDomain[A]: Domain[A] = None
@@ -57,7 +57,8 @@ object Gen {
   // Feel free to use functions you’ve already written.
   def choose(start: Int, stopExclusive: Int): Gen[Int] =
     Gen(
-      State(RNG.map(RNG.nonNegativeInt)(i => start + (i % (stopExclusive - start)))),
+      State(RNG.map(RNG.nonNegativeInt)(i =>
+        start + (i % (stopExclusive - start)))),
       boundedDomain(Stream.from(start).take(stopExclusive))
     )
 
@@ -91,7 +92,9 @@ object Gen {
     choose(0, DefaultSampleSize).flatMap(asciiN)
 
   def alphaChar: Gen[Char] =
-    pick(IndexedSeq.range(48, 57) ++ IndexedSeq.range(65, 90) ++ IndexedSeq.range(97, 122)).map(_.toChar)
+    pick(
+      IndexedSeq.range(48, 57) ++ IndexedSeq.range(65, 90) ++ IndexedSeq
+        .range(97, 122)).map(_.toChar)
 
   def alphaN(n: Int): Gen[String] =
     alphaChar.listOfN(n).map(_.mkString)
@@ -103,7 +106,9 @@ object Gen {
     choose(0, xs.length).map(xs.apply)
 
   def listOfN[A](n: Int, g: Gen[A]): Gen[List[A]] =
-    Gen(State.sequence(List.fill(n)(g.sample)), g.domain.map(_.map(a => List.fill(n)(a))))
+    Gen(
+      State.sequence(List.fill(n)(g.sample)),
+      g.domain.map(_.map(a => List.fill(n)(a))))
 
   // Exercise 13: Define listOf1 for generating nonempty lists, and then update your specification of max to use this generator.
   def listOf1[A](g: Gen[A]): SGen[List[A]] =
@@ -120,7 +125,7 @@ object Gen {
     val (g2v, w2) = g2
     val g1prob = w1 / (w1 + w2)
 
-    double.flatMap(d => if(d < g1prob) g1v else g2v)
+    double.flatMap(d => if (d < g1prob) g1v else g2v)
   }
 
   // Exercise 12: Implement a listOf combinator that doesn't accept an explicit size. It should return an SGen instead of a Gen.
@@ -176,7 +181,7 @@ case class SGen[+A](forSize: Int => Gen[A]) {
   def map[B](f: A => B): SGen[B] =
     SGen(s => forSize(s).map(f))
 
-  def **[B](s2: SGen[B]): SGen[(A,B)] =
+  def **[B](s2: SGen[B]): SGen[(A, B)] =
     SGen(n => forSize(n) ** s2.forSize(n))
 }
 
@@ -197,8 +202,9 @@ object Examples {
   // Exercise 18: Come up with some other properties that takeWhile should satisfy. Can you think of a
   // good property expressing the relationship between takeWhile and dropWhile ?
   val takeWhileProp: Prop =
-    forAll(Gen.int.listOf1 ** Gen.funToBoolean(Gen.int).unsized) { case (is, p) =>
-      is.takeWhile(p) ++ is.dropWhile(p) == is
+    forAll(Gen.int.listOf1 ** Gen.funToBoolean(Gen.int).unsized) {
+      case (is, p) =>
+        is.takeWhile(p) ++ is.dropWhile(p) == is
     }
 
   val takeProp: Prop =

@@ -11,7 +11,9 @@ class TraversableSpec extends FlatSpec with Matchers {
   // Exercise 13, 14, 16, 17, 18, 19
 
   "the listTraverse" should "traverse a List" in {
-    listTraverse.traverse[Stream, Int, Int](List(1, 2))(i => Stream(i, -i)) shouldBe Stream(List(1, 2), List(-1, -2))
+    listTraverse.traverse[Stream, Int, Int](List(1, 2))(i => Stream(i, -i)) shouldBe Stream(
+      List(1, 2),
+      List(-1, -2))
   }
 
   it should "map a List" in {
@@ -27,10 +29,13 @@ class TraversableSpec extends FlatSpec with Matchers {
   }
 
   it should "fuse two List traversals" in {
-    listTraverse.fuse[Stream, Stream, Int, Int](List(1, 2))(i => Stream(i), i => Stream(-i)) shouldBe (Stream(List(1, 2)), Stream(List(-1, -2)))
+    listTraverse.fuse[Stream, Stream, Int, Int](List(1, 2))(
+      i => Stream(i),
+      i => Stream(-i)) shouldBe (Stream(List(1, 2)), Stream(List(-1, -2)))
   }
   "the optionTraverse" should "traverse an Option" in {
-    optionTraverse.traverse[Stream, Int, String](Some(1))(i => Stream(i.toString, (-i).toString)) shouldBe Stream(Some("1"), Some("-1"))
+    optionTraverse.traverse[Stream, Int, String](Some(1))(i =>
+      Stream(i.toString, (-i).toString)) shouldBe Stream(Some("1"), Some("-1"))
   }
 
   it should "map an Option" in {
@@ -50,20 +55,29 @@ class TraversableSpec extends FlatSpec with Matchers {
 
   it should "fuse two Option traversals" in {
     optionTraverse.fuse[Stream, Stream, Int, String](Some(1))(
-      i => Stream(i.toString), i => Stream((-i).toString)) shouldBe (Stream(Some("1")), Stream(Some("-1")))
+      i => Stream(i.toString),
+      i => Stream((-i).toString)) shouldBe (Stream(Some("1")),
+    Stream(Some("-1")))
   }
 
   "the treeTraversable" should "traverse a Tree" in {
-    treeTraverse.traverse[Stream, Int, Double](Tree(1, List(Tree(2, List.empty)))
-    )(i => Stream(i / 2.0, i * 2.0)) shouldBe Stream(Tree(0.5, List(Tree(1.0, List.empty))), Tree(2.0, List(Tree(4.0, List.empty))))
+    treeTraverse.traverse[Stream, Int, Double](Tree(
+      1,
+      List(Tree(2, List.empty))))(i => Stream(i / 2.0, i * 2.0)) shouldBe Stream(
+      Tree(0.5, List(Tree(1.0, List.empty))),
+      Tree(2.0, List(Tree(4.0, List.empty))))
   }
 
   it should "map a Tree" in {
-    treeTraverse.map(Tree(1, List(Tree(2, List.empty))))(_ + 1) shouldBe Tree(2, List(Tree(3, List.empty)))
+    treeTraverse.map(Tree(1, List(Tree(2, List.empty))))(_ + 1) shouldBe Tree(
+      2,
+      List(Tree(3, List.empty)))
   }
 
   it should "reverse a Tree" in {
-    treeTraverse.reverse(Tree(1, List(Tree(2, List.empty)))) shouldBe Tree(2, List(Tree(1, List.empty)))
+    treeTraverse.reverse(Tree(1, List(Tree(2, List.empty)))) shouldBe Tree(
+      2,
+      List(Tree(1, List.empty)))
   }
 
   it should "foldLeft a Tree" in {
@@ -71,16 +85,20 @@ class TraversableSpec extends FlatSpec with Matchers {
   }
 
   it should "fuse two Tree traversals" in {
-    treeTraverse.fuse[Stream, Stream, Int, String](Tree(1, List(Tree(2, List.empty))))(
-      i => Stream(i.toString), i => Stream((-i).toString)) shouldBe (
+    treeTraverse.fuse[Stream, Stream, Int, String](
+      Tree(1, List(Tree(2, List.empty))))(
+      i => Stream(i.toString),
+      i => Stream((-i).toString)) shouldBe (
       Stream(Tree("1", List(Tree("2", List.empty)))),
       Stream(Tree("-1", List(Tree("-2", List.empty))))
     )
   }
 
   "A Traversal" should "compose" in {
-    listTraverse.compose(optionTraverse)
-      .traverse[Stream, Int, String](List(Some(1), Some(2)))(i => Stream(i.toString)) shouldBe Stream(List(Some("1"), Some("2")))
+    listTraverse
+      .compose(optionTraverse)
+      .traverse[Stream, Int, String](List(Some(1), Some(2)))(i =>
+        Stream(i.toString)) shouldBe Stream(List(Some("1"), Some("2")))
   }
 
 }

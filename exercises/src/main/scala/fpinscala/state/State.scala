@@ -22,7 +22,7 @@ object RNG {
 
   def unit[A](a: A): Rand[A] = rng => (a, rng)
 
-  def map[A,B](s: Rand[A])(f: A => B): Rand[B] =
+  def map[A, B](s: Rand[A])(f: A => B): Rand[B] =
     rng => {
       val (a, r1) = s(rng)
       (f(a), r1)
@@ -30,9 +30,9 @@ object RNG {
 
   // Exercise 1: Write a function that uses RNG.nextInt to generate a random integer between 0 and
   // Int.MaxValue (inclusive).
-  def nonNegativeInt(rng: RNG): (Int, RNG) =  {
+  def nonNegativeInt(rng: RNG): (Int, RNG) = {
     val (i, r) = rng.nextInt
-    (if (i < 0) -i +1 else i, r)
+    (if (i < 0) -i + 1 else i, r)
   }
 
   // Exercise 2: Write a function to generate a Double between 0 and 1 , not including 1
@@ -44,16 +44,16 @@ object RNG {
   // Exercise 3: Write functions to generate an (Int, Double) pair, a (Double, Int) pair, and a
   // (Double, Double, Double) 3-tuple. You should be able to reuse the functions you’ve
   // already written.
-  def intDouble(rng: RNG): ((Int,Double), RNG) = {
+  def intDouble(rng: RNG): ((Int, Double), RNG) = {
     val (i, r1) = rng.nextInt
     val (d, r2) = double(r1)
     ((i, d), r2)
   }
-  def doubleInt(rng: RNG): ((Double,Int), RNG) = {
+  def doubleInt(rng: RNG): ((Double, Int), RNG) = {
     val ((i, d), r) = intDouble(rng)
     ((d, i), r)
   }
-  def double3(rng: RNG): ((Double,Double,Double), RNG) = {
+  def double3(rng: RNG): ((Double, Double, Double), RNG) = {
     val (d1, r1) = double(rng)
     val (d2, r2) = double(r1)
     val (d3, r3) = double(r2)
@@ -67,9 +67,8 @@ object RNG {
     def go(c: Int, rng: RNG, acc: List[Int]): (List[Int], RNG) = {
       if (c > 0) {
         val (i, r) = rng.nextInt
-        go(c-1, r, i :: acc)
-      }
-      else
+        go(c - 1, r, i :: acc)
+      } else
         (acc, rng)
     }
 
@@ -77,10 +76,11 @@ object RNG {
   }
 
   // Exercise 5: Use map to reimplement double in a more elegant way
-  val double2: Rand[Double] = map(nonNegativeInt)(_ / (Int.MaxValue.toDouble + 1))
+  val double2: Rand[Double] =
+    map(nonNegativeInt)(_ / (Int.MaxValue.toDouble + 1))
 
   // Exercise 6: Write the implementation of map2
-  def map2[A,B,C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] =
+  def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] =
     r0 => {
       val (a, r1) = ra(r0)
       val (b, r2) = rb(r1)
@@ -90,22 +90,22 @@ object RNG {
   // Exercise 7: Implement sequence for combining a List of transitions into a single
   // transition.
   def sequence[A](fs: List[Rand[A]]): Rand[List[A]] =
-  rng => {
-    val (finalAs, finalR) = fs.foldLeft((List.empty[A], rng)) {
-      case ((as, r), ra) =>
-        val (a, rNext) = ra(r)
-        (a :: as, rNext)
-    }
+    rng => {
+      val (finalAs, finalR) = fs.foldLeft((List.empty[A], rng)) {
+        case ((as, r), ra) =>
+          val (a, rNext) = ra(r)
+          (a :: as, rNext)
+      }
 
-    // does it really matter that the values are reversed?
-    (finalAs.reverse, finalR)
-  }
+      // does it really matter that the values are reversed?
+      (finalAs.reverse, finalR)
+    }
 
   def ints2(count: Int): Rand[List[Int]] =
     sequence(List.fill(count)(nonNegativeInt))
 
   // Exercise 8: Implement flatMap, and then use it to implement nonNegativeLessThan.
-  def flatMap[A,B](f: Rand[A])(g: A => Rand[B]): Rand[B] =
+  def flatMap[A, B](f: Rand[A])(g: A => Rand[B]): Rand[B] =
     rng => {
       val (a, r1) = f(rng)
       g(a)(r1)
@@ -114,14 +114,15 @@ object RNG {
   def nonNegativeLessThan(n: Int): Rand[Int] =
     flatMap(nonNegativeInt) { i =>
       val mod = i % n
-      if (i + (n-1) - mod >= 0) unit(mod) else nonNegativeLessThan(n)
+      if (i + (n - 1) - mod >= 0) unit(mod) else nonNegativeLessThan(n)
     }
 
   // Exercise 9: Reimplement map and map2 in terms of flatMap
-  def mapViaFlatMap[A,B](s: Rand[A])(f: A => B): Rand[B] =
+  def mapViaFlatMap[A, B](s: Rand[A])(f: A => B): Rand[B] =
     flatMap(s)(a => unit(f(a)))
 
-  def map2ViaFlatMap[A,B,C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] =
+  def map2ViaFlatMap[A, B, C](ra: Rand[A], rb: Rand[B])(
+    f: (A, B) => C): Rand[C] =
     flatMap(ra) { a =>
       map(rb) { b =>
         f(a, b)
@@ -131,7 +132,7 @@ object RNG {
 
 // Exercise 10: Generalize the functions unit , map , map2 , flatMap , and sequence . Add them as methods on the State case class where possible.
 // Otherwise you should put them in a State companion object.
-case class State[S,+A](run: S => (A, S)) {
+case class State[S, +A](run: S => (A, S)) {
   def map[B](f: A => B): State[S, B] =
     flatMap(a => State.unit(f(a)))
 
@@ -156,10 +157,11 @@ object State {
       s.map2(acc)(_ :: _)
     }
 
-  def modify[S](f: S => S): State[S, Unit] = for {
-    s <- get // Gets the current state and assigns it to `s`.
-    _ <- set(f(s)) // Sets the new state to `f` applied to `s`.
-  } yield ()
+  def modify[S](f: S => S): State[S, Unit] =
+    for {
+      s <- get // Gets the current state and assigns it to `s`.
+      _ <- set(f(s)) // Sets the new state to `f` applied to `s`.
+    } yield ()
 
   def get[S]: State[S, S] = State(s => (s, s))
 

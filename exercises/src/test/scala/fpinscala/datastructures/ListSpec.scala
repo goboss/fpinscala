@@ -173,7 +173,9 @@ class ListSpec extends FlatSpec with Matchers {
   }
 
   it should "map a non empty list" in {
-    List.map(List(1, 2))(i => "doubled: " + (i * 2)) shouldBe List("doubled: 2", "doubled: 4")
+    List.map(List(1, 2))(i => "doubled: " + (i * 2)) shouldBe List(
+      "doubled: 2",
+      "doubled: 4")
   }
 
   // Exercise 19
@@ -229,7 +231,9 @@ class ListSpec extends FlatSpec with Matchers {
   }
 
   it should "zip two non empty lists together" in {
-    List.zipWith(List(1, 2), List("dog", "cats"))((e1, e2) => e1 + " " + e2) shouldBe List("1 dog", "2 cats")
+    List.zipWith(List(1, 2), List("dog", "cats"))((e1, e2) => e1 + " " + e2) shouldBe List(
+      "1 dog",
+      "2 cats")
   }
 
   // Exercise 24

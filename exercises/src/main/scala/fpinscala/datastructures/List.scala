@@ -14,10 +14,10 @@ object List {
   def append[A](a1: List[A], a2: List[A]): List[A] =
     a1 match {
       case Nil => a2
-      case Cons(h,t) => Cons(h, append(t, a2))
+      case Cons(h, t) => Cons(h, append(t, a2))
     }
 
-  def foldRight[A,B](as: List[A], z: B)(f: (A, B) => B): B = // Utility functions
+  def foldRight[A, B](as: List[A], z: B)(f: (A, B) => B): B = // Utility functions
     as match {
       case Nil => z
       case Cons(x, xs) => f(x, foldRight(xs, z)(f))
@@ -37,7 +37,7 @@ object List {
 
   // Exercise 4: Generalize tail to function that removes the first n elements from a list
   def drop[A](l: List[A], n: Int): List[A] = l match {
-    case Cons(_, t) if n > 0 => drop(t, n-1)
+    case Cons(_, t) if n > 0 => drop(t, n - 1)
     case _ => l
   }
 
@@ -60,7 +60,7 @@ object List {
 
   // Exercise 10: implement a stack-safe foldLeft
   @tailrec
-  def foldLeft[A,B](l: List[A], z: B)(f: (B, A) => B): B = l match {
+  def foldLeft[A, B](l: List[A], z: B)(f: (B, A) => B): B = l match {
     case Nil => z
     case Cons(h, t) => foldLeft(t, f(z, h))(f)
   }
@@ -96,19 +96,19 @@ object List {
 
   // Exercise 16: Add 1 to each element of list of ints
   def inc(is: List[Int]): List[Int] =
-    foldRight2(is, Nil: List[Int])((i, acc) => Cons(i+1, acc))
+    foldRight2(is, Nil: List[Int])((i, acc) => Cons(i + 1, acc))
 
   // Exercise 17: Write a function that turns each Double into a String
   def d2s(ds: List[Double]): List[String] =
     foldRight2(ds, Nil: List[String])((d, acc) => Cons(d.toString, acc))
 
   // Exercise 18: Write a map finally!
-  def map[A,B](l: List[A])(f: A => B): List[B] =
+  def map[A, B](l: List[A])(f: A => B): List[B] =
     foldRight2(l, Nil: List[B])((a, acc) => Cons(f(a), acc))
 
   // Exercise 19: Write a function filter
   def filter[A](as: List[A])(p: A => Boolean): List[A] =
-    foldRight2(as, Nil: List[A])((a, acc) => if(p(a)) Cons(a, acc) else acc)
+    foldRight2(as, Nil: List[A])((a, acc) => if (p(a)) Cons(a, acc) else acc)
 
   // Exercise 20: Write flatMap
   def flatMap[A, B](as: List[A])(f: A => List[B]): List[B] =
@@ -122,15 +122,18 @@ object List {
   def addTogether(as: List[Int], bs: List[Int]): List[Int] = (as, bs) match {
     case (Nil, _) => Nil
     case (_, Nil) => Nil
-    case (Cons(a, ta), Cons(b, tb)) => Cons(a + b, addTogether(ta, tb)) // not stack safe!
+    case (Cons(a, ta), Cons(b, tb)) =>
+      Cons(a + b, addTogether(ta, tb)) // not stack safe!
   }
 
   // Exercise 23: Generalize addTogether
-  def zipWith[A, B, C](as: List[A], bs: List[B])(f: (A, B) => C): List[C] = (as, bs) match {
-    case (Nil, _) => Nil
-    case (_, Nil) => Nil
-    case (Cons(a, ta), Cons(b, tb)) => Cons(f(a, b), zipWith(ta, tb)(f)) // not stack safe!
-  }
+  def zipWith[A, B, C](as: List[A], bs: List[B])(f: (A, B) => C): List[C] =
+    (as, bs) match {
+      case (Nil, _) => Nil
+      case (_, Nil) => Nil
+      case (Cons(a, ta), Cons(b, tb)) =>
+        Cons(f(a, b), zipWith(ta, tb)(f)) // not stack safe!
+    }
 
   // Exercise 24: implement a function for checking whether a list contains another list as a subsequence
   def hasSubsequence[A](sup: List[A], sub: List[A]): Boolean = {

@@ -97,7 +97,7 @@ object Monoid {
   // Your implementation should use the strategy of splitting the sequence in two,
   // recursively processing each half, and then adding the answers together with the monoid.
   def foldMapV[A, B](as: IndexedSeq[A], m: Monoid[B])(f: A => B): B = {
-    if(as.size < 2)
+    if (as.size < 2)
       as.headOption.map(f).getOrElse(m.zero)
     else {
       val (l, r) = as.splitAt(as.length / 2)
@@ -111,7 +111,7 @@ object Monoid {
     val zero: Par[A] = Par.unit(m.zero)
   }
 
-  def parFoldMap[A,B](as: IndexedSeq[A], m: Monoid[B])(f: A => B): Par[B] =
+  def parFoldMap[A, B](as: IndexedSeq[A], m: Monoid[B])(f: A => B): Par[B] =
     Par.flatMap(Par.sequenceBalanced(as.map(Par.asyncF(f)))) { bs =>
       foldMapV(bs, par(m))(b => Par.lazyUnit(b))
     }
@@ -119,7 +119,9 @@ object Monoid {
   // Exercise 9: Use foldMap to detect whether a given IndexedSeq[Int] is ordered. You’ll need to come up with a creative Monoid
   def ordered(ints: IndexedSeq[Int]): Boolean = {
     val creativeMonoid = new Monoid[(Option[Int], Boolean)] {
-      def op(a1: (Option[Int], Boolean), a2: (Option[Int], Boolean)): (Option[Int], Boolean) =
+      def op(
+        a1: (Option[Int], Boolean),
+        a2: (Option[Int], Boolean)): (Option[Int], Boolean) =
         (a1, a2) match {
           case ((_, false), (i2, _)) =>
             (i2, false)
@@ -145,7 +147,8 @@ object Monoid {
         case (Stub(c1), Stub(c2)) => Stub(c1 + c2)
         case (Stub(c), Part(l, w, r)) => Part(c + l, w, r)
         case (Part(l, w, r), Stub(c)) => Part(l, w, r + c)
-        case (Part(l1, w1, r1), Part(l2, w2, r2)) => Part(l1, w1 + w2 + min(1, (r1 + l2).length),r2)
+        case (Part(l1, w1, r1), Part(l2, w2, r2)) =>
+          Part(l1, w1 + w2 + min(1, (r1 + l2).length), r2)
       }
     val zero: WC = Stub("")
   }
@@ -155,34 +158,35 @@ object Monoid {
   def count(s: String): Int = {
     def countWord(w: String): Int = min(1, w.length)
 
-    foldMapV(s.toVector, wcMonoid)(c => if (c.isWhitespace) Part("", 0, "") else Stub(c.toString)) match {
+    foldMapV(s.toVector, wcMonoid)(c =>
+      if (c.isWhitespace) Part("", 0, "") else Stub(c.toString)) match {
       case Stub(c) => countWord(c)
       case Part(l, w, r) => w + countWord(l) + countWord(r)
     }
   }
 
   // Exercise 16: Write a monoid instance for products.
-  def productMonoid[A,B](A: Monoid[A], B: Monoid[B]): Monoid[(A, B)] =
+  def productMonoid[A, B](A: Monoid[A], B: Monoid[B]): Monoid[(A, B)] =
     new Monoid[(A, B)] {
-      def op(a1: (A, B), a2: (A, B)): (A, B) = (A.op(a1._1, a2._1), B.op(a1._2, a2._2))
+      def op(a1: (A, B), a2: (A, B)): (A, B) =
+        (A.op(a1._1, a2._1), B.op(a1._2, a2._2))
       val zero: (A, B) = (A.zero, B.zero)
     }
 
   // Exercise 17: Write a monoid instance for functions whose results are monoids.
-  def functionMonoid[A,B](B: Monoid[B]): Monoid[A => B] =
+  def functionMonoid[A, B](B: Monoid[B]): Monoid[A => B] =
     new Monoid[(A) => B] {
       def op(a1: (A) => B, a2: (A) => B): (A) => B = a => B.op(a1(a), a2(a))
-      val zero: (A) => B =_ => B.zero
+      val zero: (A) => B = _ => B.zero
     }
 
-  def mapMergeMonoid[K,V](V: Monoid[V]): Monoid[Map[K, V]] =
+  def mapMergeMonoid[K, V](V: Monoid[V]): Monoid[Map[K, V]] =
     new Monoid[Map[K, V]] {
       def op(a: Map[K, V], b: Map[K, V]): Map[K, V] =
-        (a.keySet ++ b.keySet).foldLeft(zero) { (acc,k) =>
-          acc.updated(k, V.op(a.getOrElse(k, V.zero),
-            b.getOrElse(k, V.zero)))
+        (a.keySet ++ b.keySet).foldLeft(zero) { (acc, k) =>
+          acc.updated(k, V.op(a.getOrElse(k, V.zero), b.getOrElse(k, V.zero)))
         }
-      val zero: Map[K, V] = Map[K,V]()
+      val zero: Map[K, V] = Map[K, V]()
     }
 
   // Exercise 18: Use monoids to compute a “bag” from an IndexedSeq.
@@ -193,10 +197,10 @@ object Monoid {
 trait Foldable[F[_]] {
   import Monoid._
 
-  def foldLeft[A,B](as: F[A])(z: B)(f: (B, A) => B): B =
+  def foldLeft[A, B](as: F[A])(z: B)(f: (B, A) => B): B =
     foldMap(as)(a => (b: B) => f(b, a))(reverse(endoMonoid[B]))(z)
 
-  def foldRight[A,B](as: F[A])(z: B)(f: (A, B) => B): B =
+  def foldRight[A, B](as: F[A])(z: B)(f: (A, B) => B): B =
     foldMap(as)(f.curried)(endoMonoid[B])(z)
 
   def foldMap[A, B](as: F[A])(f: A => B)(mb: Monoid[B]): B =

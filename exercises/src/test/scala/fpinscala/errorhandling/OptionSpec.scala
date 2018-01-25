@@ -75,7 +75,8 @@ class OptionSpec extends FlatSpec with Matchers {
   // Exercise 4
 
   it should "combine an empty list of Option values into Some with empty list" in {
-    Option.sequence(List.empty[Option[Int]]) shouldBe Some(List.empty[Option[Int]])
+    Option.sequence(List.empty[Option[Int]]) shouldBe Some(
+      List.empty[Option[Int]])
   }
 
   it should "combine a list of Option values, some of which are None, into None" in {
@@ -83,21 +84,25 @@ class OptionSpec extends FlatSpec with Matchers {
   }
 
   it should "combine a list of Some values into a Some of list" in {
-    Option.sequence(List(Some(1), Some(2), Some(3))) shouldBe Some(List(1, 2, 3))
+    Option.sequence(List(Some(1), Some(2), Some(3))) shouldBe Some(
+      List(1, 2, 3))
   }
 
   // Exercise 5
 
   it should "traverse an empty list of Int values and get Some with empty list" in {
-    Option.traverse(List.empty[Int])(_ => Some(1)) shouldBe Some(List.empty[Int])
+    Option.traverse(List.empty[Int])(_ => Some(1)) shouldBe Some(
+      List.empty[Int])
   }
 
   it should "traverse a list of Int values and get Some with a list of doubled values" in {
-    Option.traverse(List(1, 2, 3))((x: Int) => Some(x * 2)) shouldBe Some(List(2, 4, 6))
+    Option.traverse(List(1, 2, 3))((x: Int) => Some(x * 2)) shouldBe Some(
+      List(2, 4, 6))
   }
 
   it should "combine an empty list of Option values into Some with empty list using traverse" in {
-    Option.sequence2(List.empty[Option[Int]]) shouldBe Some(List.empty[Option[Int]])
+    Option.sequence2(List.empty[Option[Int]]) shouldBe Some(
+      List.empty[Option[Int]])
   }
 
   it should "combine a list of Option values, some of which are None, into None using traverse" in {
@@ -105,6 +110,7 @@ class OptionSpec extends FlatSpec with Matchers {
   }
 
   it should "combine a list of Some values into a Some of list using traverse" in {
-    Option.sequence2(List(Some(1), Some(2), Some(3))) shouldBe Some(List(1, 2, 3))
+    Option.sequence2(List(Some(1), Some(2), Some(3))) shouldBe Some(
+      List(1, 2, 3))
   }
 }
