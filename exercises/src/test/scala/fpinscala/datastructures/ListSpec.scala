@@ -29,11 +29,11 @@ class ListSpec extends FlatSpec with Matchers {
 
   // Exercise 4
 
-  it should "drop n elements from Nil" in {
+  it should "attempt to drop 3 elements from Nil" in {
     List.drop(Nil, 3) shouldBe Nil
   }
 
-  it should "drop 1 element from a non empty list" in {
+  it should "drop 2 elements from a non empty list" in {
     List.drop(List(1, 2, 3), 2) shouldBe List(3)
   }
 
